@@ -1,0 +1,6 @@
+{
+	host: "localhost",
+	port: 18080,
+	docs: "./docs",
+	log: {},
+}

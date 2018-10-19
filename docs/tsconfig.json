@@ -1,0 +1,15 @@
+{
+	"compilerOptions": {
+		"module": "es2015",
+		"target": "es2017",
+		"strictNullChecks": true,
+		"noImplicitAny": true,
+		"removeComments": true,
+		"preserveConstEnums": false,
+		"keyofStringsOnly": true,
+		"sourceMap": false
+	},
+	"include": [
+		"./app.ts"
+	]
+}
