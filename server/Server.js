@@ -1,65 +1,30 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const fs = require("./Pfs");
-const Static = require("./Static");
-const Monitor_1 = require("./Monitor");
 class Server {
-    constructor(config) {
-        this.config = config;
-        this.servers = {};
-        this.server = new Monitor_1.default(this.config.get(), this);
-    }
-    getConfig() { return this.config; }
-    getServer(url) { return this.servers[url]; }
-    getServers() { return this.servers; }
-    getServerUrls() { return Object.keys(this.servers); }
-    createStaticServer(conf) {
-        if (!conf.docs) {
-            return null;
-        }
-        try {
-            const stat = fs.statSync(conf.docs);
-            if (!stat.isDirectory()) {
-                throw 'Not directory: ' + conf.docs;
+    constructor() {
+        process.on('message', (message) => {
+            console.log('child:', message);
+            if (typeof message !== 'object') {
+                return;
             }
-            const server = Static.CreateServer(conf);
-            return server;
-        }
-        catch (error) { }
-        return null;
-    }
-    start(main) {
-        return this.config.load().then(() => {
-            if (main) {
-                if (!this.server) {
-                    this.server = new Monitor_1.default(this.config.get(), this);
-                }
-                this.server.start();
+            switch (message.command) {
+                case 'start': return this.start(message.data);
+                case 'stop': return this.stop();
             }
-            this.config.gets().forEach((conf) => {
-                if (conf.disable) {
-                    return;
-                }
-                if (conf.docs) {
-                    const server = this.createStaticServer(conf);
-                    if (!server) {
-                        return;
-                    }
-                    const key = (conf.ssl && conf.ssl.key && conf.ssl.cert ? 'https://' : 'http://') + conf.host + ':' + conf.port;
-                    this.servers[key] = server;
-                }
-            });
+        });
+        this.send('prepare', {});
+    }
+    send(command, data) { process.send({ command: command, data: data }); }
+    start(config) {
+        const WebServer = require('./Server/Static').Server;
+        const server = new WebServer();
+        server.init(config).then(() => {
+            server.start();
         });
     }
-    stop(main) {
-        if (main && this.server) {
-            this.server.stop();
-            this.server = null;
+    stop() {
+        if (!this.server) {
+            return;
         }
-        Object.keys(this.servers).forEach((url) => {
-            this.servers[url].stop();
-            delete this.servers[url];
-        });
+        this.server.stop();
     }
 }
-exports.default = Server;
+const server = new Server();

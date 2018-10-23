@@ -1,96 +1,40 @@
-import Config from './Config'
-import * as fs from './Pfs'
-import * as Static from './Static'
-import Monitor from './Monitor'
-import * as path from 'path'
 
-// TODO:
-// Proxy server
-// Operation server
-
-export default class Server
+class Server
 {
-	private config: Config;
-	private server: Monitor | null;
-	private servers: { [ key: string ]: NodeWebServer };
+	private server: NodeWebServer;
 
-	constructor( config: Config )
+	constructor()
 	{
-		this.config = config;
-		this.servers = {};
-		this.server = new Monitor( this.config.get(), this );
-	}
-
-	// API
-
-	public getConfig() { return this.config; }
-
-	public getServer( url: string ): NodeWebServer|null { return this.servers[ url ]; }
-
-	public getServers() { return this.servers; }
-
-	public getServerUrls() { return Object.keys( this.servers ); }
-
-	public stopServer( url: string )
-	{
-		if ( !this.servers[ url ] ) { return false; }
-		this.servers[ url ].stop();
-		delete this.servers[ url ];
-		return true;
-	}
-
-	// Server(manager)
-
-	private createStaticServer( conf: ServerConfig )
-	{
-		if ( !conf.docs ) { return null; }
-		try
+		process.on( 'message', ( message ) =>
 		{
-			const stat = fs.statSync( conf.docs );
-			if ( !stat.isDirectory() ) { throw 'Not directory: ' + conf.docs; }
-			const server = Static.CreateServer( conf );
-			return server;
-		} catch( error ){}
-		return null;
-	}
-
-	public start( main: boolean )
-	{
-		return this.config.load().then( () =>
-		{
-			if ( main )
+console.log('child:',message);
+			if ( typeof message !== 'object' ) { return; }
+			switch ( message.command )
 			{
-				if ( !this.server ) { this.server = new Monitor( this.config.get(), this ); }
-				this.server.start();
+				case 'start': return this.start( (<NoWSToChildMessage<'start'>>message).data );
+				case 'stop': return this.stop();
 			}
+		} );
+		this.send( 'prepare', {} );
+	}
 
-			this.config.gets().forEach( ( conf ) =>
-			{
-				if ( conf.disable ) { return; }
-				if ( conf.docs )
-				{
-					const server = this.createStaticServer( conf );
-					if ( !server ) { return; }
-					const key = ( conf.ssl && conf.ssl.key && conf.ssl.cert ? 'https://' : 'http://' ) + conf.host + ':' + conf.port;
-					//if ( this.servers[ key ] ) { this.servers[ key ].stop(); }
-					this.servers[ key ] = server;
-				}
-			} );
+	private send<T extends keyof NoWSToParentMessageMap>( command: T, data: NoWSToParentMessageMap[ T ] ) { (<any>process).send( { command: command, data: data } ); }
+
+	public start( config: ServerConfig )
+	{
+		const WebServer = require( './Server/Static' ).Server;
+		const server: NodeWebServer = new WebServer();
+		server.init( config ).then( () =>
+		{
+			server.start();
 		} );
 	}
 
-	public stop( main: boolean )
+	public stop()
 	{
-		if ( main && this.server )
-		{
-			this.server.stop();
-			this.server = null;
-		}
-
-		Object.keys( this.servers ).forEach( ( url ) =>
-		{
-			this.servers[ url ].stop();
-			delete this.servers[ url ];
-		} );
+		if ( !this.server ) { return; }
+		this.server.stop();
 	}
 }
+
+const server = new Server();

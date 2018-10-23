@@ -2,17 +2,9 @@ import * as http from 'http'
 import * as https from 'https'
 import * as stream from 'stream'
 import * as Static from './Static'
-import Server from './Server'
 
-export default class Monitor extends Static.Server
+export default class Server extends Static.Server
 {
-	private mserver: Server;
-
-	constructor( conf: NoWSConfig, server: Server )
-	{
-		super( conf );
-		this.mserver = server;
-	}
 
 	private responseJSON( res: http.ServerResponse, data: any, statusCode = 200 )
 	{
@@ -70,7 +62,7 @@ export default class Monitor extends Static.Server
 	public apiServerList( req: http.IncomingMessage, res: http.ServerResponse )
 	{
 		const data: ResponseServerList = { max: 0, list: [] };
-		const servers = this.mserver.getServers();
+/*		const servers = this.mserver.getServers();
 
 		const urls = Object.keys( servers );
 		urls.sort();
@@ -88,7 +80,7 @@ export default class Monitor extends Static.Server
 			data.list.push( { url: url, alive: servers[ url ].alive() } );
 		} );
 
-		this.responseJSON( res, data );
+		this.responseJSON( res, data );*/
 	}
 
 	public apiServerStop( req: http.IncomingMessage, res: http.ServerResponse )
@@ -113,12 +105,12 @@ export default class Monitor extends Static.Server
 		}
 		return p.then( () =>
 		{
-			const data: ResponseServerStop = { url: {} };
+		/*	const data: ResponseServerStop = { url: {} };
 			urls.forEach( ( url ) =>
 			{
 				data.url[ url ] = this.mserver.stopServer( url );
 			} );
-			this.responseJSON( res, data );
+			this.responseJSON( res, data );*/
 		} );
 	}
 
@@ -151,7 +143,8 @@ console.log(url);
 
 console.log( this.host + ':' + this.port );
 		this.server.listen( this.port, this.host );
+return Promise.resolve();
 	}
 
-	public stop() { this.server.close(); }
+	public stop() { this.server.close();return Promise.resolve(); }
 }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const fs = require("./Pfs");
+const fs = require("../Pfs");
 const path = require("path");
 const http = require("http");
 const https = require("https");
@@ -22,11 +22,15 @@ exports.MIME = {
     'wasm': 'application/wasm',
 };
 function CreateServer(conf) {
-    return new Server(conf);
+    const server = new Server();
+    server.init(conf);
+    return server;
 }
 exports.CreateServer = CreateServer;
 class Server {
-    constructor(conf) {
+    constructor() {
+    }
+    init(conf) {
         this.ssl = false;
         this.host = conf.host;
         this.port = conf.port;
@@ -35,11 +39,12 @@ class Server {
         this.defFile = 'index.html';
         const option = { key: '', cert: '' };
         if (conf.ssl) {
+            this.ssl = !!(option.key && option.cert);
             option.key = this.loadPemFile(conf.ssl.key);
             option.cert = this.loadPemFile(conf.ssl.cert);
         }
-        this.ssl = !!(option.key && option.cert);
         this.server = this.ssl ? https.createServer(option) : http.createServer();
+        return Promise.resolve();
     }
     loadPemFile(file) {
         if (!file || !file.match(/\.pem$/)) {
@@ -96,6 +101,7 @@ class Server {
         return '';
     }
     onRequest(req, res) {
+        console.log(this);
         const filepath = this.checkFile((req.url || '/').split('?')[0]);
         if (!filepath) {
             return this.e404(res);
@@ -110,15 +116,19 @@ class Server {
         }
     }
     start() {
-        this.server.on('close', () => { });
-        this.server.on('request', this.onRequest);
-        console.log(this.host + ':' + this.port);
-        this.server.listen(this.port, this.host);
+        return new Promise((resolve, reject) => {
+            this.server.on('close', () => { });
+            this.server.on('request', (req, res) => { this.onRequest(req, res); });
+            console.log(this.host + ':' + this.port);
+            this.server.listen(this.port, this.host, () => { resolve(); });
+        }).then(() => {
+        });
     }
     stop() {
         this.server.close();
+        return Promise.resolve();
     }
-    alive() { return this.server.listening; }
+    alive() { return Promise.resolve(this.server.listening); }
 }
 exports.Server = Server;
 class ReplaceServer extends Server {

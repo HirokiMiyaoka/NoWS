@@ -4,18 +4,6 @@ const fs = require("./Pfs");
 const path = require("path");
 class Config {
     constructor(dir) {
-        this.conf =
-            {
-                host: 'localhost',
-                port: 18080,
-                ssl: { key: '', cert: '' },
-                disable: true,
-                docs: path.join(path.dirname(process.argv[1]), '../docs'),
-                mime: {},
-                replace: { pattern: '', substr: '' },
-                option: {},
-                log: {},
-            };
         this.confs = {};
         this.event =
             {
@@ -26,7 +14,6 @@ class Config {
             };
         this.dir = dir;
     }
-    get() { return this.conf; }
     gets() {
         return Object.keys(this.confs).map((key) => { return this.confs[key]; });
     }
@@ -94,9 +81,8 @@ class Config {
             return Promise.all(files.map((file) => {
                 return fs.readJson5(path.join(dir, file)).then((conf) => {
                     console.log(file, conf);
-                    if (typeof conf !== 'object' ||
-                        typeof conf.host !== 'string' || !conf.host ||
-                        typeof conf.port !== 'number') {
+                    if (typeof conf !== 'object' || typeof conf.port !== 'number' ||
+                        typeof conf.host !== 'string' || !conf.host) {
                         return null;
                     }
                     conf.port = Math.floor(conf.port);
@@ -107,12 +93,17 @@ class Config {
                         host: conf.host,
                         port: conf.port,
                         ssl: { key: '', cert: '' },
-                        disable: conf.disable === false,
+                        user: 0,
+                        disable: conf.disable === true,
                         docs: '',
                         mime: {},
                         replace: { pattern: '', substr: '' },
+                        log: {},
                         option: conf.option,
                     };
+                    if (typeof process.getuid === 'function') {
+                        newconf.user = process.getuid();
+                    }
                     if (conf.docs && typeof conf.docs === 'string') {
                         const dir = path.normalize(conf.docs);
                         newconf.docs = path.isAbsolute(dir) ? dir : path.normalize(path.join(path.dirname(process.argv[1]), '../', dir));
@@ -134,20 +125,15 @@ class Config {
                         newconf.replace.pattern = conf.replace.pattern;
                         newconf.replace.substr = conf.replace.substr;
                     }
-                    if (file !== 'config.json' && file !== 'config.json5') {
-                        return newconf;
-                    }
-                    this.conf = Object.assign(newconf, { log: {} });
-                    const nconf = conf;
-                    if (nconf.log) {
-                        if (nconf.log.err === null || typeof nconf.log.err === 'string') {
-                            this.conf.log.err = nconf.log.err;
+                    if (conf.log) {
+                        if (conf.log.err === null || typeof conf.log.err === 'string') {
+                            newconf.log.err = conf.log.err;
                         }
-                        if (nconf.log.out === null || typeof nconf.log.out === 'string') {
-                            this.conf.log.out = nconf.log.out;
+                        if (conf.log.out === null || typeof conf.log.out === 'string') {
+                            newconf.log.out = conf.log.out;
                         }
                     }
-                    return null;
+                    return newconf;
                 }).catch((error) => { return null; }).then((conf) => { return { file: file, conf: conf }; });
             })).then((p) => {
                 const confs = {};

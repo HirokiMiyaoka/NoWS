@@ -1,7 +1,8 @@
-import * as fs from './Pfs'
+import * as fs from '../Pfs'
 import * as path from 'path'
 import * as http from 'http'
 import * as https from 'https'
+import * as process from 'process'
 
 export const MIME: { [ key: string ]: string } =
 {
@@ -26,7 +27,11 @@ export function CreateServer( conf: ServerConfig )
 {
 	// TODO: switch
 	// TODO: throw
-	return new Server( conf );
+	const server = new Server();
+
+	server.init( conf );
+
+	return server;
 }
 
 export class Server implements NodeWebServer
@@ -39,7 +44,11 @@ export class Server implements NodeWebServer
 	protected mime: { [ key: string ]: string };
 	protected server: http.Server | https.Server;
 
-	constructor( conf: ServerConfig )
+	constructor()
+	{
+	}
+
+	public init( conf: ServerConfig )
 	{
 		this.ssl = false;
 		this.host = conf.host;
@@ -51,12 +60,14 @@ export class Server implements NodeWebServer
 		const option = { key: '', cert: '' };
 		if ( conf.ssl )
 		{
+			this.ssl = !!( option.key && option.cert );
 			option.key = this.loadPemFile( conf.ssl.key );
 			option.cert = this.loadPemFile( conf.ssl.cert );
 		}
-		this.ssl = !!( option.key && option.cert );
 
 		this.server = this.ssl ? https.createServer( option ) : http.createServer();
+
+		return Promise.resolve();
 	}
 
 	private loadPemFile( file: string )
@@ -127,6 +138,7 @@ export class Server implements NodeWebServer
 
 	public onRequest( req: http.IncomingMessage, res: http.ServerResponse )
 	{
+console.log(this);
 		const filepath = this.checkFile( ( req.url || '/' ).split( '?' )[ 0 ] );
 
 		if ( !filepath ) { return this.e404( res ); }
@@ -145,25 +157,32 @@ export class Server implements NodeWebServer
 
 	public start()
 	{
+		return new Promise( ( resolve, reject ) =>
+		{
 //this.server.on( 'checkContinue', ( req: http.IncomingMessage, res: http.ServerResponse ) => { console.log( '', arguments ); } );
 //this.server.on( 'checkExpectation', ( req: http.IncomingMessage, res: http.ServerResponse ) => { console.log( '', arguments ); } );
 //this.server.on( 'clientError', ( exception: Error, socket: net.Socket ) => { console.log( '', arguments ); } );
-		this.server.on( 'close', () => {} );
+			this.server.on( 'close', () => {} );
 //this.server.on( 'connect', ( request: http.IncomingMessage, socket: net.Socket, head: Buffer ) => { console.log( '', arguments ); } );
 //this.server.on( 'connection', ( socket: net.Socket ) => { console.log( '', arguments ); } );
-		this.server.on( 'request', this.onRequest );
+			this.server.on( 'request', ( req, res ) => { this.onRequest( req, res ); } );
 //this.server.on( 'upgrade', ( request: http.IncomingMessage, socket: net.Socket, head: Buffer ) => { console.log( '', arguments ); } );
 
 console.log( this.host + ':' + this.port );
-		this.server.listen( this.port, this.host );
+			this.server.listen( this.port, this.host, () => { resolve(); } );
+		} ).then( () =>
+		{
+			//if (  ){}
+		} );
 	}
 
 	public stop()
 	{
 		this.server.close();
+		return Promise.resolve();
 	}
 
-	public alive() { return this.server.listening; }
+	public alive() { return Promise.resolve( this.server.listening ); }
 }
 
 export class ReplaceServer extends Server

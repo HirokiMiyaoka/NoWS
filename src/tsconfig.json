@@ -12,6 +12,8 @@
 	},
 	"include": [
 		"./types.d.ts",
+		"./Server/*.ts",
+		"./Server.ts",
 		"./index.ts"
 	]
 }

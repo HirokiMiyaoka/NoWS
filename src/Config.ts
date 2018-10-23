@@ -1,18 +1,15 @@
 import * as fs from './Pfs'
 import * as path from 'path'
 
-interface _NoWSConfig extends _ServerConfig
-{
-	log: { err?: string | null, out?: string | null },
-}
-
 interface _ServerConfig extends ServerConfig
 {
 	ssl: { key: string, cert: string },
+	user: number,
 	disable: boolean,
 	docs: string,
 	mime: { [ key: string ]: string },
 	replace: { pattern: string, substr: string },
+	log: { err?: string | null, out?: string | null },
 }
 
 interface ConfigEventMap
@@ -32,24 +29,11 @@ interface ConfigEventData<T extends keyof ConfigEventMap>
 export default class Config
 {
 	private dir: string;
-	private conf: _NoWSConfig;
 	private confs: { [ key: string ]: _ServerConfig };
 	private event: { [ T in keyof ConfigEventMap ]: ( ( event: ConfigEventData<T> ) => void )[] };
 
 	constructor( dir: string )
 	{
-		this.conf =
-		{
-			host: 'localhost',
-			port: 18080,
-			ssl: { key: '', cert: '' },
-			disable: true,
-			docs: path.join( path.dirname( process.argv[ 1 ] ), '../docs' ),
-			mime: {},
-			replace: { pattern: '', substr: '' },
-			option: {},
-			log: {},
-		};
 		this.confs = {};
 		this.event =
 		{
@@ -61,8 +45,6 @@ export default class Config
 		this.dir = dir;
 		//const confs = this.load( dir );
 	}
-
-	public get() { return <NoWSConfig>this.conf; }
 
 	public gets(): ServerConfig[]
 	{
@@ -150,10 +132,8 @@ export default class Config
 				{
 console.log(file,conf);
 					// JSON check
-					if ( typeof conf !== 'object' ||
-						typeof conf.host !== 'string' || !conf.host ||
-						typeof conf.port !== 'number' ) { return null; }
-
+					if ( typeof conf !== 'object' || typeof conf.port !== 'number' ||
+						typeof conf.host !== 'string' || !conf.host ) { return null; }
 					// Port check.
 					conf.port = Math.floor( conf.port );
 					if ( conf.port < 0 || 65535 < conf.port ) { return null; }
@@ -163,12 +143,16 @@ console.log(file,conf);
 						host: conf.host,
 						port: conf.port,
 						ssl: { key: '', cert: '' },
-						disable: conf.disable === false,
+						user: 0,
+						disable: conf.disable === true,
 						docs: '',
 						mime: {},
 						replace: { pattern: '', substr: '' },
+						log: {},
 						option: conf.option,
 					};
+
+					if ( typeof process.getuid === 'function' ) { newconf.user = process.getuid(); }
 
 					if ( conf.docs && typeof conf.docs === 'string' )
 					{
@@ -199,19 +183,13 @@ console.log(file,conf);
 						newconf.replace.substr = conf.replace.substr;
 					}
 
-					if ( file !== 'config.json' && file !== 'config.json5' ) { return newconf; }
-
-					// NoWS config.
-					this.conf = Object.assign( newconf, { log: {} } );
-					const nconf = <NoWSConfig>conf;
-
-					if ( nconf.log )
+					if ( conf.log )
 					{
-						if ( nconf.log.err === null || typeof nconf.log.err === 'string' ) { this.conf.log.err = nconf.log.err; }
-						if ( nconf.log.out === null || typeof nconf.log.out === 'string' ) { this.conf.log.out = nconf.log.out; }
+						if ( conf.log.err === null || typeof conf.log.err === 'string' ) { newconf.log.err = conf.log.err; }
+						if ( conf.log.out === null || typeof conf.log.out === 'string' ) { newconf.log.out = conf.log.out; }
 					}
 
-					return null;
+					return newconf;
 				} ).catch( ( error ) => { return null; } ).then( ( conf ) => { return { file: file, conf: conf } } );
 			} ) ).then( ( p ) =>
 			{
