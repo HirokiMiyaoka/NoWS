@@ -14,6 +14,9 @@ class Config {
             };
         this.dir = dir;
     }
+    toAbsolutePath(dir) {
+        return path.normalize(path.join(path.dirname(process.argv[1]), dir));
+    }
     gets() {
         return Object.keys(this.confs).map((key) => { return this.confs[key]; });
     }
@@ -99,6 +102,7 @@ class Config {
                         mime: {},
                         replace: { pattern: '', substr: '' },
                         log: {},
+                        module: './Server/Static',
                         option: conf.option,
                     };
                     if (typeof process.getuid === 'function') {
@@ -106,7 +110,7 @@ class Config {
                     }
                     if (conf.docs && typeof conf.docs === 'string') {
                         const dir = path.normalize(conf.docs);
-                        newconf.docs = path.isAbsolute(dir) ? dir : path.normalize(path.join(path.dirname(process.argv[1]), '../', dir));
+                        newconf.docs = path.isAbsolute(dir) ? dir : this.toAbsolutePath(path.join('../', dir));
                     }
                     if (typeof conf.ssl === 'object' && typeof conf.ssl.key === 'string' && typeof conf.ssl.cert === 'string') {
                         newconf.ssl.key = conf.ssl.key;
@@ -132,6 +136,9 @@ class Config {
                         if (conf.log.out === null || typeof conf.log.out === 'string') {
                             newconf.log.out = conf.log.out;
                         }
+                    }
+                    if (typeof conf.module === 'string') {
+                        newconf.module = path.isAbsolute(conf.module) ? conf.module : this.toAbsolutePath(conf.module);
                     }
                     return newconf;
                 }).catch((error) => { return null; }).then((conf) => { return { file: file, conf: conf }; });

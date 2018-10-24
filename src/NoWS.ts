@@ -11,22 +11,28 @@ import * as child from 'child_process'
 
 class WebServer
 {
-	private child: child.ChildProcess;
+	protected config: ServerConfig;
+	protected child: child.ChildProcess;
 
 	constructor( config: ServerConfig )
 	{
-console.log('start:',path.join( path.dirname( process.argv[ 1 ] ), 'Server.js' ));
+		this.config = config;
 		this.child = child.fork( path.join( path.dirname( process.argv[ 1 ] ), 'Server.js' ) );
 
 		this.child.on( 'message', ( message ) =>
 		{
 console.log('parent:',message);
 			if ( typeof message !== 'object' ) { return; }
-			switch ( message.command )
-			{
-				case 'prepare': return this.start( config ); //<NoWSToParentMessage<'prepare'>>message
-			}
+			this.onMessage( message );
 		} );
+	}
+
+	protected onMessage( message: any )
+	{
+		switch ( message.command )
+		{
+			case 'prepare': return this.start( this.config ); //<NoWSToParentMessage<'prepare'>>message
+		}
 	}
 
 	public send<T extends keyof NoWSToChildMessageMap>( command: T, data: NoWSToChildMessageMap[ T ] )
@@ -37,35 +43,100 @@ console.log('parent:',message);
 	public start( data: ServerConfig )
 	{
 		this.send( 'start', data );
+		return Promise.resolve();
 	}
 
 	public stop()
 	{
 		this.send( 'stop', {} );
+		return Promise.resolve();
+	}
+
+	public alive()
+	{
+		return Promise.resolve( true );
+	}
+}
+
+function Timeout<T>( time: number, p: Promise<T> )
+{
+	return new Promise<T>( ( resolve, reject ) =>
+	{
+		let timeout = false;
+		// I want to cancel Promise.
+		const timer = setTimeout( () => { timeout = true; reject( Error( 'timeout' ) ); }, time );
+		p.then( ( data ) =>
+		{
+			if ( timeout ) { return; } // Rejected.
+			clearTimeout( timer );
+			resolve( data );
+		} ).catch( ( error ) => { reject( error ); } );
+	} );
+}
+
+class MonitorServer extends WebServer
+{
+	private nows: NoWS;
+
+	constructor( config: ServerConfig, nows: NoWS )
+	{
+		super( config );
+		this.nows = nows;
+
+	}
+
+	protected onMessage( message: any )
+	{
+		switch ( <keyof NoWSToParentMessageMap>message.command )
+		{
+			case 'prepare': return this.start( this.config );
+			case 'servers': return this.getServerList();
+		}
+	}
+
+	private getServerList()
+	{
+		const data: ResponseServerList = { max: 0, list: [] };
+
+		const servers = this.nows.getServers();
+		const p: Promise<void>[] = [];
+
+		Object.keys( servers ).forEach( ( url ) =>
+		{
+			const server = { url: url, alive: false };
+			p.push( Timeout<boolean>( 500, servers[ url ].alive() ).catch( () => { return false } ).then( ( alive ) =>
+			{
+				server.alive = alive;
+			} ) );
+			data.list.push( server );
+		} );
+
+		return Promise.all( p ).then( () =>
+		{
+			data.list.sort( ( a, b ) => { return a.url < b.url ? -1 : 1; } );
+			this.send( 'servers', data );
+		} );
 	}
 }
 
 export default class NoWS
 {
 	private config: Config;
-	//private server: Monitor | null;
-	//private servers: { [ key: string ]: NodeWebServer };
 	private servers: { [ key: string ]: WebServer };
 
 	constructor( config: Config )
 	{
 		this.config = config;
 		this.servers = {};
-		//this.server = new Monitor( this.config.get(), this );
 	}
 
 	// API
+
+	public getServers() { return this.servers; }
 /*
 	public getConfig() { return this.config; }
 
 	public getServer( url: string ): NodeWebServer|null { return this.servers[ url ]; }
-
-	public getServers() { return this.servers; }
 
 	public getServerUrls() { return Object.keys( this.servers ); }
 */
@@ -77,25 +148,13 @@ export default class NoWS
 		return true;
 	}
 
-	// Server(manager)
-
-/*	private createStaticServer( conf: ServerConfig )
-	{
-		if ( !conf.docs ) { return null; }
-		try
-		{
-			const stat = fs.statSync( conf.docs );
-			if ( !stat.isDirectory() ) { throw 'Not directory: ' + conf.docs; }
-			const server = Static.CreateServer( conf );
-			return server;
-		} catch( error ){}
-		return null;
-	}*/
-
 	private startServer( config: ServerConfig )
 	{
-		const server = new WebServer( config );
-		return server;
+		if ( config.module === path.join( path.dirname( process.argv[ 1 ] ), './Server/Monitor' ) )
+		{
+			return new MonitorServer( config, this );
+		}
+		return new WebServer( config );
 	}
 
 	public start()
@@ -119,14 +178,6 @@ export default class NoWS
 				}
 
 				this.servers[ key ] = this.startServer( conf );
-
-				if ( conf.docs )
-				{
-//					const server = this.createStaticServer( conf );
-//					if ( !server ) { return; }
-					//if ( this.servers[ key ] ) { this.servers[ key ].stop(); }
-//					this.servers[ key ] = server;
-				}
 			} );
 
 		} );

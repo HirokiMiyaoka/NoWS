@@ -5,11 +5,15 @@ interface _ServerConfig extends ServerConfig
 {
 	ssl: { key: string, cert: string },
 	user: number,
+
 	disable: boolean,
-	docs: string,
 	mime: { [ key: string ]: string },
-	replace: { pattern: string, substr: string },
 	log: { err?: string | null, out?: string | null },
+
+	docs: string,
+	replace: { pattern: string, substr: string },
+
+	module: string,
 }
 
 interface ConfigEventMap
@@ -46,6 +50,11 @@ export default class Config
 		//const confs = this.load( dir );
 	}
 
+	private toAbsolutePath( dir: string )
+	{
+		return path.normalize( path.join( path.dirname( process.argv[ 1 ] ), dir ) );
+	}
+
 	public gets(): ServerConfig[]
 	{
 		return Object.keys( this.confs ).map( ( key ) => { return this.confs[ key ]; } );
@@ -64,7 +73,7 @@ export default class Config
 			}
 			const a = confs[ file ];
 			const b = this.confs[ file ];
-			// TODO: modify check
+			// TODO: modify check. assert.deepStrictEqual()
 			if ( a.host === b.host && a.port === b.port && a.ssl === b.ssl && a.disable === b.disable )
 			{
 				return;
@@ -149,6 +158,7 @@ console.log(file,conf);
 						mime: {},
 						replace: { pattern: '', substr: '' },
 						log: {},
+						module: './Server/Static',
 						option: conf.option,
 					};
 
@@ -157,7 +167,7 @@ console.log(file,conf);
 					if ( conf.docs && typeof conf.docs === 'string' )
 					{
 						const dir = path.normalize( conf.docs );
-						newconf.docs = path.isAbsolute( dir ) ? dir : path.normalize( path.join( path.dirname( process.argv[ 1 ] ), '../', dir ) );
+						newconf.docs = path.isAbsolute( dir ) ? dir : this.toAbsolutePath( path.join( '../', dir ) );
 					}
 
 					// Option check.
@@ -165,6 +175,12 @@ console.log(file,conf);
 					{
 						newconf.ssl.key = conf.ssl.key;
 						newconf.ssl.cert = conf.ssl.cert;
+					}
+
+					// TODO username -> userid
+					if ( typeof conf.user === 'string' )
+					{
+						
 					}
 
 					if ( typeof conf.mime === 'object' )
@@ -187,6 +203,11 @@ console.log(file,conf);
 					{
 						if ( conf.log.err === null || typeof conf.log.err === 'string' ) { newconf.log.err = conf.log.err; }
 						if ( conf.log.out === null || typeof conf.log.out === 'string' ) { newconf.log.out = conf.log.out; }
+					}
+
+					if ( typeof conf.module === 'string' )
+					{
+						newconf.module = path.isAbsolute( conf.module ) ? conf.module : this.toAbsolutePath( conf.module );
 					}
 
 					return newconf;

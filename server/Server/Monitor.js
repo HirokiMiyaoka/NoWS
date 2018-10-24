@@ -1,7 +1,24 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const Static = require("./Static");
+function CreateServer(conf) { return new Server(); }
+exports.default = CreateServer;
 class Server extends Static.Server {
+    init(conf, server) {
+        this.child = server;
+        return super.init(conf, server).then(() => {
+            this.p =
+                {
+                    servers: [],
+                };
+            server.setOnMessage((message) => { this.onMessage(message); });
+        });
+    }
+    onMessage(message) {
+        switch (message.command) {
+            case 'servers': return this.getServerList(message.data);
+        }
+    }
     responseJSON(res, data, statusCode = 200) {
         res.writeHead(statusCode, { 'Content-Type': 'application/json' });
         res.write(JSON.stringify(data));
@@ -38,8 +55,17 @@ class Server extends Static.Server {
     requestPostJSON(request) {
         return this.requestPost(request).then((data) => { return JSON.parse(data); });
     }
+    getServerList(data) {
+        this.p.servers.forEach((resolve) => { resolve(data); });
+        this.p.servers = [];
+    }
     apiServerList(req, res) {
-        const data = { max: 0, list: [] };
+        return new Promise((resolve, reject) => {
+            this.p.servers.push(resolve);
+            this.child.send('servers', {});
+        }).then((data) => {
+            this.responseJSON(res, data);
+        });
     }
     apiServerStop(req, res) {
         let p = Promise.resolve();
@@ -93,4 +119,4 @@ class Server extends Static.Server {
     }
     stop() { this.server.close(); return Promise.resolve(); }
 }
-exports.default = Server;
+exports.Server = Server;

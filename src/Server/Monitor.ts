@@ -3,8 +3,36 @@ import * as https from 'https'
 import * as stream from 'stream'
 import * as Static from './Static'
 
-export default class Server extends Static.Server
+export default function CreateServer( conf: ServerConfig ) { return new Server(); }
+
+export class Server extends Static.Server
 {
+	protected child: ChildServer;
+	private p:
+	{
+		servers: (( value: ResponseServerList ) => void)[],
+	};
+
+	public init( conf: ServerConfig, server: ChildServer )
+	{
+		this.child = server;
+		return super.init( conf, server ).then( () =>
+		{
+			this.p =
+			{
+				servers: [],
+			};
+			server.setOnMessage( ( message ) => { this.onMessage( message ); } );
+		} );
+	}
+
+	private onMessage( message: any )
+	{
+		switch( message.command )
+		{
+			case 'servers': return this.getServerList( (<NoWSToChildMessage<'servers'>>message).data );
+		}
+	}
 
 	private responseJSON( res: http.ServerResponse, data: any, statusCode = 200 )
 	{
@@ -59,28 +87,22 @@ export default class Server extends Static.Server
 		return this.requestPost( request ).then( ( data ) => { return <T>JSON.parse( data ); } )
 	}
 
+	private getServerList( data: ResponseServerList )
+	{
+		this.p.servers.forEach( ( resolve ) => { resolve( data ); } );
+		this.p.servers = [];
+	}
+
 	public apiServerList( req: http.IncomingMessage, res: http.ServerResponse )
 	{
-		const data: ResponseServerList = { max: 0, list: [] };
-/*		const servers = this.mserver.getServers();
-
-		const urls = Object.keys( servers );
-		urls.sort();
-		data.max = urls.length + 1;
-
-		// if ( page === 0 ) {}
-		data.list.push(
+		return new Promise<ResponseServerList>( ( resolve, reject ) =>
 		{
-			alive: true,
-			url: ( this.ssl ? 'https://' : 'http://' ) + this.host + ':' + this.port,
-		} );
-
-		urls.forEach( ( url ) =>
+			this.p.servers.push( resolve );
+			this.child.send( 'servers', {} );
+		} ).then( ( data ) =>
 		{
-			data.list.push( { url: url, alive: servers[ url ].alive() } );
+			this.responseJSON( res, data );
 		} );
-
-		this.responseJSON( res, data );*/
 	}
 
 	public apiServerStop( req: http.IncomingMessage, res: http.ServerResponse )

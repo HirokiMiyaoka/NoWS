@@ -1,6 +1,7 @@
 {
-	host: "localhost",
+	host: 'localhost',
 	port: 18080,
-	docs: "./docs",
+	docs: './docs',
+	module: './Server/Monitor',
 	log: {},
 }

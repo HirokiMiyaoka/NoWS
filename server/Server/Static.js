@@ -5,41 +5,41 @@ const path = require("path");
 const http = require("http");
 const https = require("https");
 exports.MIME = {
-    'css': 'text/css',
-    'gif': 'image/gif',
-    'gz': 'application/gzip',
-    'html': 'text/html',
-    'ico': 'image/x-icon',
-    'jpg': 'image/jpeg',
-    'js': 'text/javascript',
-    'json': 'application/json',
-    'jsonp': 'application/javascript',
-    'png': 'image/png',
-    'svg': 'image/svg+xml',
-    'svgz': 'image/svg+xml',
-    'txt': 'text/plain',
-    'zip': 'application/zip',
-    'wasm': 'application/wasm',
+    css: 'text/css',
+    gif: 'image/gif',
+    gz: 'application/gzip',
+    html: 'text/html',
+    ico: 'image/x-icon',
+    jpg: 'image/jpeg',
+    js: 'text/javascript',
+    json: 'application/json',
+    jsonp: 'application/javascript',
+    png: 'image/png',
+    svg: 'image/svg+xml',
+    svgz: 'image/svg+xml',
+    txt: 'text/plain',
+    zip: 'application/zip',
+    wasm: 'application/wasm',
+    webp: 'image/webp',
 };
 function CreateServer(conf) {
     const server = new Server();
-    server.init(conf);
     return server;
 }
-exports.CreateServer = CreateServer;
+exports.default = CreateServer;
 class Server {
     constructor() {
     }
-    init(conf) {
+    init(conf, server) {
         this.ssl = false;
         this.host = conf.host;
         this.port = conf.port;
-        this.docroot = conf.docs;
+        this.docroot = path.join(conf.docs || '');
         this.mime = Object.assign({}, exports.MIME);
         this.defFile = 'index.html';
         const option = { key: '', cert: '' };
-        if (conf.ssl) {
-            this.ssl = !!(option.key && option.cert);
+        if (conf.ssl && option.key && option.cert) {
+            this.ssl = true;
             option.key = this.loadPemFile(conf.ssl.key);
             option.cert = this.loadPemFile(conf.ssl.cert);
         }
@@ -101,7 +101,6 @@ class Server {
         return '';
     }
     onRequest(req, res) {
-        console.log(this);
         const filepath = this.checkFile((req.url || '/').split('?')[0]);
         if (!filepath) {
             return this.e404(res);

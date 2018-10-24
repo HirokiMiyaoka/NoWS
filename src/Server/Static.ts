@@ -6,30 +6,29 @@ import * as process from 'process'
 
 export const MIME: { [ key: string ]: string } =
 {
-	'css':	'text/css',
-	'gif':	'image/gif',
-	'gz':	'application/gzip',
-	'html':	'text/html',
-	'ico':	'image/x-icon',
-	'jpg':	'image/jpeg',
-	'js':	'text/javascript',
-	'json':	'application/json',
-	'jsonp':	'application/javascript',
-	'png':	'image/png',
-	'svg':	'image/svg+xml',
-	'svgz':	'image/svg+xml',
-	'txt':	'text/plain',
-	'zip':	'application/zip',
-	'wasm':	'application/wasm',
+	css:	'text/css',
+	gif:	'image/gif',
+	gz:	'application/gzip',
+	html:	'text/html',
+	ico:	'image/x-icon',
+	jpg:	'image/jpeg',
+	js:	'text/javascript',
+	json:	'application/json',
+	jsonp:	'application/javascript',
+	png:	'image/png',
+	svg:	'image/svg+xml',
+	svgz:	'image/svg+xml',
+	txt:	'text/plain',
+	zip:	'application/zip',
+	wasm:	'application/wasm',
+	webp:	'image/webp',
 };
 
-export function CreateServer( conf: ServerConfig )
+export default function CreateServer( conf: ServerConfig )
 {
 	// TODO: switch
 	// TODO: throw
 	const server = new Server();
-
-	server.init( conf );
 
 	return server;
 }
@@ -48,19 +47,19 @@ export class Server implements NodeWebServer
 	{
 	}
 
-	public init( conf: ServerConfig )
+	public init( conf: ServerConfig, server: ChildServer )
 	{
 		this.ssl = false;
 		this.host = conf.host;
 		this.port = conf.port;
-		this.docroot = <string>conf.docs;
+		this.docroot = path.join( conf.docs || '' );
 		this.mime = Object.assign( {}, MIME );
 		this.defFile = 'index.html';
 
 		const option = { key: '', cert: '' };
-		if ( conf.ssl )
+		if ( conf.ssl && option.key && option.cert )
 		{
-			this.ssl = !!( option.key && option.cert );
+			this.ssl = true;
 			option.key = this.loadPemFile( conf.ssl.key );
 			option.cert = this.loadPemFile( conf.ssl.cert );
 		}
@@ -138,7 +137,6 @@ export class Server implements NodeWebServer
 
 	public onRequest( req: http.IncomingMessage, res: http.ServerResponse )
 	{
-console.log(this);
 		const filepath = this.checkFile( ( req.url || '/' ).split( '?' )[ 0 ] );
 
 		if ( !filepath ) { return this.e404( res ); }
