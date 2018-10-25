@@ -2,6 +2,17 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs = require("./Pfs");
 const path = require("path");
+const child_process_1 = require("child_process");
+function ExecCommand(command) {
+    return new Promise((resolve, reject) => {
+        child_process_1.exec(command, (error, stdout, stderr) => {
+            if (error) {
+                return reject(error);
+            }
+            resolve({ stdout: stdout, stderr: stderr });
+        });
+    });
+}
 class Config {
     constructor(dir) {
         this.confs = {};
@@ -15,7 +26,7 @@ class Config {
         this.dir = dir;
     }
     toAbsolutePath(dir) {
-        return path.normalize(path.join(path.dirname(process.argv[1]), dir));
+        return path.normalize(path.join(path.dirname(process.argv[1]), '../', dir));
     }
     gets() {
         return Object.keys(this.confs).map((key) => { return this.confs[key]; });
@@ -82,42 +93,53 @@ class Config {
             });
         }).then((files) => {
             return Promise.all(files.map((file) => {
-                return fs.readJson5(path.join(dir, file)).then((conf) => {
-                    console.log(file, conf);
-                    if (typeof conf !== 'object' || typeof conf.port !== 'number' ||
-                        typeof conf.host !== 'string' || !conf.host) {
-                        return null;
+                return fs.readJson5(path.join(dir, file)).then((config) => {
+                    console.log(file, config);
+                    const p = [];
+                    if (typeof config !== 'object' || typeof config.port !== 'number' ||
+                        typeof config.host !== 'string' || !config.host) {
+                        throw Error('Invalid config.');
                     }
-                    conf.port = Math.floor(conf.port);
-                    if (conf.port < 0 || 65535 < conf.port) {
-                        return null;
+                    config.port = Math.floor(config.port);
+                    if (config.port < 0 || 65535 < config.port) {
+                        throw Error('Invalid port.');
                     }
                     const newconf = {
-                        host: conf.host,
-                        port: conf.port,
+                        host: config.host,
+                        port: config.port,
                         ssl: { key: '', cert: '' },
                         user: 0,
-                        disable: conf.disable === true,
+                        disable: config.disable === true,
                         docs: '',
                         mime: {},
                         replace: { pattern: '', substr: '' },
+                        dir_index: ['index.html'],
                         log: {},
                         module: './Server/Static',
-                        option: conf.option,
+                        option: config.option,
                     };
                     if (typeof process.getuid === 'function') {
                         newconf.user = process.getuid();
                     }
-                    if (conf.docs && typeof conf.docs === 'string') {
-                        const dir = path.normalize(conf.docs);
-                        newconf.docs = path.isAbsolute(dir) ? dir : this.toAbsolutePath(path.join('../', dir));
+                    if (config.docs && typeof config.docs === 'string') {
+                        const dir = path.normalize(config.docs);
+                        newconf.docs = path.isAbsolute(dir) ? dir : this.toAbsolutePath(dir);
                     }
-                    if (typeof conf.ssl === 'object' && typeof conf.ssl.key === 'string' && typeof conf.ssl.cert === 'string') {
-                        newconf.ssl.key = conf.ssl.key;
-                        newconf.ssl.cert = conf.ssl.cert;
+                    if (typeof config.ssl === 'object' && typeof config.ssl.key === 'string' && typeof config.ssl.cert === 'string') {
+                        newconf.ssl.key = config.ssl.key;
+                        newconf.ssl.cert = config.ssl.cert;
                     }
-                    if (typeof conf.mime === 'object') {
-                        const mime = conf.mime;
+                    if (typeof config.user === 'string') {
+                        p.push(ExecCommand('id -u ' + config.user).then((result) => {
+                            const uid = parseInt(result.stdout);
+                            if (isNaN(uid)) {
+                                return;
+                            }
+                            config.user = uid;
+                        }).catch(() => { }));
+                    }
+                    if (typeof config.mime === 'object') {
+                        const mime = config.mime;
                         Object.keys(mime).forEach((ext) => {
                             if (ext.match(/[^A-Za-z0-9]/) || typeof mime[ext] !== 'string') {
                                 return;
@@ -125,22 +147,36 @@ class Config {
                             newconf.mime[ext] = mime[ext];
                         });
                     }
-                    if (typeof conf.replace === 'object' && typeof conf.replace.pattern === 'string' && conf.replace.substr === 'string') {
-                        newconf.replace.pattern = conf.replace.pattern;
-                        newconf.replace.substr = conf.replace.substr;
+                    if (typeof config.replace === 'object' && typeof config.replace.pattern === 'string' && config.replace.substr === 'string') {
+                        newconf.replace.pattern = config.replace.pattern;
+                        newconf.replace.substr = config.replace.substr;
                     }
-                    if (conf.log) {
-                        if (conf.log.err === null || typeof conf.log.err === 'string') {
-                            newconf.log.err = conf.log.err;
+                    if (config.dir_index) {
+                        if (typeof config.dir_index === 'string') {
+                            newconf.dir_index = [config.dir_index];
                         }
-                        if (conf.log.out === null || typeof conf.log.out === 'string') {
-                            newconf.log.out = conf.log.out;
+                        if (Array.isArray(config.dir_index)) {
+                            newconf.dir_index = config.dir_index.concat();
                         }
                     }
-                    if (typeof conf.module === 'string') {
-                        newconf.module = path.isAbsolute(conf.module) ? conf.module : this.toAbsolutePath(conf.module);
+                    if (config.log) {
+                        if (config.log.err === null) {
+                            newconf.log.err = config.log.err;
+                        }
+                        else if (typeof config.log.err === 'string') {
+                            newconf.log.err = path.isAbsolute(config.log.err) ? config.log.err : this.toAbsolutePath(config.log.err);
+                        }
+                        if (config.log.out === null) {
+                            newconf.log.out = config.log.out;
+                        }
+                        else if (typeof config.log.out === 'string') {
+                            newconf.log.out = path.isAbsolute(config.log.out) ? config.log.err : this.toAbsolutePath(config.log.out);
+                        }
                     }
-                    return newconf;
+                    if (typeof config.module === 'string') {
+                        newconf.module = path.isAbsolute(config.module) ? config.module : this.toAbsolutePath(path.join('server/Server', config.module));
+                    }
+                    return Promise.all(p).then(() => { return newconf; });
                 }).catch((error) => { return null; }).then((conf) => { return { file: file, conf: conf }; });
             })).then((p) => {
                 const confs = {};

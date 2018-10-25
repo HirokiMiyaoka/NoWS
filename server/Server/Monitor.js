@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const stream = require("stream");
 const Static = require("./Static");
 function CreateServer(conf) { return new Server(); }
 exports.default = CreateServer;
@@ -41,15 +42,15 @@ class Server extends Static.Server {
     }
     requestPost(request) {
         return new Promise((resolve, reject) => {
+            const buftrans = new stream.Transform({ transform(chunk, encoding, callback) { callback(undefined, chunk); } });
+            request.pipe(buftrans);
             const bufs = [];
-            request.on('data', (data) => {
-                bufs.push((typeof data === 'string') ? Buffer.from(data, 'utf-8') : data);
-            });
-            request.on('end', () => {
+            buftrans.on('data', (data) => { bufs.push(data); });
+            buftrans.on('end', () => {
                 resolve(Buffer.concat(bufs).toString('utf-8'));
             });
-            request.on('error', (error) => { reject(error); });
-            request.on('aborted', (error) => { reject(error); });
+            buftrans.on('error', (error) => { reject(error); });
+            buftrans.on('aborted', (error) => { reject(error); });
         });
     }
     requestPostJSON(request) {
@@ -88,7 +89,7 @@ class Server extends Static.Server {
         return p.then(() => {
         });
     }
-    onAPI(req, res) {
+    onAPIRequest(req, res) {
         const api = (req.url || '').replace(/^\/api\/([^\?]*).*$/, '$1');
         switch (api) {
             case 'server/list':
@@ -103,20 +104,18 @@ class Server extends Static.Server {
         }
     }
     start() {
-        this.server.on('request', (req, res) => {
-            const url = req.url || '/';
-            console.log(url);
-            if (url.match(/^\/api\//)) {
-                this.onAPI(req, res);
-            }
-            else {
-                this.onRequest(req, res);
-            }
+        return new Promise((resolve, reject) => {
+            this.server.on('request', (req, res) => {
+                const url = req.url || '/';
+                if (url.match(/^\/api\//)) {
+                    this.onAPIRequest(req, res);
+                }
+                else {
+                    this.onRequest(req, res);
+                }
+            });
+            this.server.listen(this.port, this.host, resolve);
         });
-        console.log(this.host + ':' + this.port);
-        this.server.listen(this.port, this.host);
-        return Promise.resolve();
     }
-    stop() { this.server.close(); return Promise.resolve(); }
 }
 exports.Server = Server;

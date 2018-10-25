@@ -9,6 +9,7 @@ class Server {
             switch (message.command) {
                 case 'start': return this.start(message.data);
                 case 'stop': return this.stop();
+                case 'alive': return this.alive();
                 default: return this.onMessage(message);
             }
         });
@@ -28,7 +29,6 @@ class Server {
                 this.server = null;
             }
             const WebServer = require(config.module || './Server/Static');
-            console.log('start', WebServer);
             if (!WebServer) {
                 throw Error('Cannot require:' + (config.module || './Server/Static'));
             }
@@ -41,7 +41,16 @@ class Server {
             }
             return server.init(config, this).then(() => {
                 return server.start();
-            }).then(() => { this.server = server; });
+            }).then(() => {
+                this.server = server;
+                if (config.user === undefined || typeof process.getuid !== 'function') {
+                    return;
+                }
+                if (config.user === process.getuid()) {
+                    return;
+                }
+                process.setuid(config.user);
+            });
         }).catch((error) => {
             this.send('aborted', error);
         });
@@ -51,6 +60,13 @@ class Server {
             return Promise.resolve();
         }
         return this.server.stop();
+    }
+    alive() {
+        if (!this.server) {
+            this.send('alive', false);
+            return Promise.resolve();
+        }
+        return this.server.alive().then((alive) => { this.send('alive', alive); });
     }
 }
 const server = new Server();

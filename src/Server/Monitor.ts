@@ -65,20 +65,17 @@ export class Server extends Static.Server
 	{
 		return new Promise<string>( ( resolve, reject ) =>
 		{
-			//const buftrans = new stream.Transform( { transform( chunk, encoding, callback ) { callback( undefined, chunk ); } } );
-			//request.pipe( buftrans );
+			const buftrans = new stream.Transform( { transform( chunk, encoding, callback ) { callback( undefined, chunk ); } } );
+			request.pipe( buftrans );
 			const bufs: Buffer[] = [];
 
-			request.on( 'data', ( data: string|Buffer ) =>{
-				//request.connection.destroy();
-				bufs.push( ( typeof data === 'string' ) ? Buffer.from( data, 'utf-8' ) : data );
-			} );
-			request.on('end', () =>
+			buftrans.on( 'data', ( data: Buffer ) => { bufs.push( data ); } );
+			buftrans.on('end', () =>
 			{
 				resolve( Buffer.concat( bufs ).toString( 'utf-8' ) );
 			} );
-			request.on( 'error', ( error ) => { reject( error ); } );
-			request.on( 'aborted', ( error ) => { reject( error ); } );
+			buftrans.on( 'error', ( error ) => { reject( error ); } );
+			buftrans.on( 'aborted', ( error ) => { reject( error ); } );
 		} );
 	}
 
@@ -136,7 +133,7 @@ export class Server extends Static.Server
 		} );
 	}
 
-	public onAPI( req: http.IncomingMessage, res: http.ServerResponse )
+	public onAPIRequest( req: http.IncomingMessage, res: http.ServerResponse )
 	{
 		const api = ( req.url || '' ).replace( /^\/api\/([^\?]*).*$/, '$1' );
 
@@ -150,23 +147,21 @@ export class Server extends Static.Server
 
 	public start()
 	{
-		this.server.on( 'request', ( req: http.IncomingMessage, res: http.ServerResponse ) =>
+		return new Promise<void>( ( resolve, reject ) =>
 		{
-			const url = req.url || '/';
-console.log(url);
-			if ( url.match( /^\/api\// ) )
+			this.server.on( 'request', ( req: http.IncomingMessage, res: http.ServerResponse ) =>
 			{
-				this.onAPI( req, res );
-			} else
-			{
-				this.onRequest( req, res );
-			}
+				const url = req.url || '/';
+				if ( url.match( /^\/api\// ) )
+				{
+					this.onAPIRequest( req, res );
+				} else
+				{
+					this.onRequest( req, res );
+				}
+			} );
+
+			this.server.listen( this.port, this.host, resolve );
 		} );
-
-console.log( this.host + ':' + this.port );
-		this.server.listen( this.port, this.host );
-return Promise.resolve();
 	}
-
-	public stop() { this.server.close();return Promise.resolve(); }
 }

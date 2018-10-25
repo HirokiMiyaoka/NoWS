@@ -1,3 +1,9 @@
+interface LogConfig
+{
+	err?: string | null,
+	out?: string | null,
+}
+
 interface ServerConfig
 {
 	// Web server settings.
@@ -6,18 +12,20 @@ interface ServerConfig
 	ssl?: { key: string, cert: string },//TODO: http redirect
 	// Change user( username or uid )
 	user?: string| number,
+	// Auth
 
 	// true = Cannot up web server.
 	disable?: boolean,
 	mime?: { [ key: string ]: string },
-	log?: { err?: string | null, out?: string | null },
+	log?: LogConfig,
 
 	// Static server.
 	docs?: string,
 	replace?: { pattern: string, substr: string },
 	// Default files.
-	//: string[],
+	dir_index?: string | string[],
 	// Exec cgi.
+	// Error page dir.
 
 	// Original server.
 	module?: string,
@@ -44,8 +52,10 @@ interface NoWSToParentMessageMap
 {
 	prepare: {},
 	aborted: Error,
-	servers: {},
 	stop: {},
+	alive: boolean,
+	// Monitor
+	servers: {},
 }
 
 interface NoWSToParentMessage<T extends keyof NoWSToParentMessageMap>
@@ -58,6 +68,8 @@ interface NoWSToChildMessageMap
 {
 	start: ServerConfig,
 	stop: {},
+	alive: {},
+	// Monitor
 	servers: ResponseServerList,
 }
 

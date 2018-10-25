@@ -13,26 +13,32 @@ class WebServer
 {
 	protected config: ServerConfig;
 	protected child: child.ChildProcess;
+	protected p:
+	{
+		alive: ( ( value: boolean ) => void )[],
+	};
 
 	constructor( config: ServerConfig )
 	{
 		this.config = config;
+		this.p = { alive: [] };
 		this.child = child.fork( path.join( path.dirname( process.argv[ 1 ] ), 'Server.js' ) );
 
 		this.child.on( 'message', ( message ) =>
 		{
 console.log('parent:',message);
 			if ( typeof message !== 'object' ) { return; }
-			this.onMessage( message );
+			switch ( message.command )
+			{
+				case 'prepare': return this.start( this.config );
+				case 'alive': return this.alived( <NoWSToParentMessage<'alive'>>message );
+				default: this.onMessage( message );
+			}
 		} );
 	}
 
 	protected onMessage( message: any )
 	{
-		switch ( message.command )
-		{
-			case 'prepare': return this.start( this.config ); //<NoWSToParentMessage<'prepare'>>message
-		}
 	}
 
 	public send<T extends keyof NoWSToChildMessageMap>( command: T, data: NoWSToChildMessageMap[ T ] )
@@ -52,9 +58,19 @@ console.log('parent:',message);
 		return Promise.resolve();
 	}
 
+	private alived( message: NoWSToParentMessage<'alive'> )
+	{
+		this.p.alive.forEach( ( resolve ) => { resolve( !!message.data ); } );
+		this.p.alive = [];
+	}
+
 	public alive()
 	{
-		return Promise.resolve( true );
+		return new Promise<boolean>( ( resolve, reject ) =>
+		{
+			this.p.alive.push( resolve );
+			this.send( 'alive', {} );
+		} );
 	}
 }
 
@@ -89,7 +105,6 @@ class MonitorServer extends WebServer
 	{
 		switch ( <keyof NoWSToParentMessageMap>message.command )
 		{
-			case 'prepare': return this.start( this.config );
 			case 'servers': return this.getServerList();
 		}
 	}
@@ -104,7 +119,7 @@ class MonitorServer extends WebServer
 		Object.keys( servers ).forEach( ( url ) =>
 		{
 			const server = { url: url, alive: false };
-			p.push( Timeout<boolean>( 500, servers[ url ].alive() ).catch( () => { return false } ).then( ( alive ) =>
+			p.push( Timeout<boolean>( 5000, servers[ url ].alive() ).catch( () => { return false } ).then( ( alive ) =>
 			{
 				server.alive = alive;
 			} ) );
@@ -167,17 +182,17 @@ export default class NoWS
 				this.server.start();
 			}*/
 
-			this.config.gets().forEach( ( conf ) =>
+			this.config.gets().forEach( ( config ) =>
 			{
-				const key = ( conf.ssl && conf.ssl.key && conf.ssl.cert ? 'https://' : 'http://' ) + conf.host + ':' + conf.port;
+				const key = ( config.ssl && config.ssl.key && config.ssl.cert ? 'https://' : 'http://' ) + config.host + ':' + config.port;
 
-				if ( conf.disable )
+				if ( config.disable )
 				{
 					// TODO: stop.
 					return;
 				}
 
-				this.servers[ key ] = this.startServer( conf );
+				this.servers[ key ] = this.startServer( config );
 			} );
 
 		} );
