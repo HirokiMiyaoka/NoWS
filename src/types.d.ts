@@ -13,6 +13,7 @@ interface ServerConfig
 	// Change user( username or uid )
 	user?: string| number,
 	// Auth
+	// restrict access.allow,deny
 
 	// true = Cannot up web server.
 	disable?: boolean,
@@ -21,11 +22,12 @@ interface ServerConfig
 
 	// Static server.
 	docs?: string,
+	errs?: string,
 	replace?: { pattern: string, substr: string },
 	// Default files.
 	dir_index?: string | string[],
 	// Exec cgi.
-	// Error page dir.
+	// Chache control.
 
 	// Original server.
 	module?: string,
@@ -51,7 +53,7 @@ interface NodeWebServer
 interface NoWSToParentMessageMap
 {
 	prepare: {},
-	aborted: Error,
+	aborted: any,
 	stop: {},
 	alive: boolean,
 	// Monitor

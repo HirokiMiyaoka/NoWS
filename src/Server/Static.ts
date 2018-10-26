@@ -109,18 +109,19 @@ function ErrorToCode( error: any )
 	if ( !error || typeof error.code !== 'string' ) { return 404; }
 	switch ( error.code )
 	{
-		case 'EACCES': return 403;
-		case 'ECONNREFUSED': return 408;
-		case 'ECONNRESET': return 408;
-		//case 'EEXIST':
-		case 'EISDIR': break;
-		case 'EMFILE': return 403;
-		case 'ENOENT': return 404;
-		case 'ENOTDIR': return 404;
-		//case 'ENOTEMPTY':
+		case 'EACCES':
+		case 'EMFILE':
 		case 'EPERM': return 403;
-		case 'EPIPE': return 408;
+		case 'EISDIR':
+		case 'ENOENT':
+		case 'ENOTDIR': return 404;
+		case 'ECONNREFUSED':
+		case 'ECONNRESET':
+		case 'EPIPE':
 		case 'ETIMEDOUT': return 408;
+		//case 'EADDRINUSE':
+		//case 'ENOTEMPTY':
+		//case 'EEXIST':
 	}
 	return 404;
 }
@@ -131,6 +132,7 @@ export class Server implements NodeWebServer
 	protected host: string;
 	protected port: number;
 	protected docroot: string;
+	protected errroot: string;
 	protected defFile: string[];
 	protected mime: { [ key: string ]: string };
 	protected server: http.Server | https.Server;
@@ -145,6 +147,7 @@ export class Server implements NodeWebServer
 		this.host = config.host;
 		this.port = config.port;
 		this.docroot = path.normalize( config.docs || '' );
+		this.errroot = config.errs || '';
 		this.mime = Object.assign( {}, MIME );
 		this.defFile = [ 'index.html' ];
 
@@ -188,9 +191,19 @@ export class Server implements NodeWebServer
 	{
 		const message = (<any>HttpStatusCode)[ code ] || HttpStatusCode[ (code = 404) ];
 
-		res.writeHead( code, { 'Content-Type': 'text/plain' } );
-		res.write( code + ': ' + message );
-		res.end();
+		const filepath = this.errroot ? path.join( this.errroot, code + '.html' ) : '';
+
+		return ( filepath && this.fileExists( filepath ) ? fs.readFile( filepath, 'utf-8' ).then( ( data ) =>
+		{
+			res.writeHead( code, { 'Content-Type': 'text/html' } );
+			res.write( data );
+			res.end();
+		} ) : Promise.reject() ).catch( () =>
+		{
+			res.writeHead( code, { 'Content-Type': 'text/plain' } );
+			res.write( code + ': ' + message );
+			res.end();
+		} );
 	}
 
 	protected errorPage( res: http.ServerResponse, error: Error )
@@ -242,8 +255,8 @@ export class Server implements NodeWebServer
 		// /test/ => /test/index.html
 		for ( let def of this.defFile )
 		{
-			const fullpath = path.join( this.docroot, filepath + def );
-			if ( this.fileExists( filepath ) ) { return filepath; }
+			const fullpath = path.join( this.docroot, filepath, def );
+			if ( this.fileExists( fullpath ) ) { return fullpath; }
 		}
 
 		return '';

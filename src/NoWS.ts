@@ -16,22 +16,25 @@ class WebServer
 	protected p:
 	{
 		alive: ( ( value: boolean ) => void )[],
+		stop:  ( () => void )[],
 	};
 
 	constructor( config: ServerConfig )
 	{
 		this.config = config;
-		this.p = { alive: [] };
+		this.p = { alive: [], stop: [] };
 		this.child = child.fork( path.join( path.dirname( process.argv[ 1 ] ), 'Server.js' ) );
 
 		this.child.on( 'message', ( message ) =>
 		{
 console.log('parent:',message);
 			if ( typeof message !== 'object' ) { return; }
-			switch ( message.command )
+			switch ( <keyof NoWSToParentMessageMap>message.command )
 			{
 				case 'prepare': return this.start( this.config );
 				case 'alive': return this.alived( <NoWSToParentMessage<'alive'>>message );
+				case 'aborted': return this.aborted( <NoWSToParentMessage<'aborted'>>message );
+				case 'stop': return this.stopped();
 				default: this.onMessage( message );
 			}
 		} );
@@ -52,10 +55,24 @@ console.log('parent:',message);
 		return Promise.resolve();
 	}
 
+	public aborted( message: any )
+	{
+
+	}
+
+	private stopped()
+	{
+		this.p.stop.forEach( ( resolve ) => { resolve(); } );
+		this.p.stop = [];
+	}
+
 	public stop()
 	{
-		this.send( 'stop', {} );
-		return Promise.resolve();
+		return new Promise( ( resolve, reject ) =>
+		{
+			this.p.stop.push( resolve );
+			this.send( 'stop', {} );
+		} );
 	}
 
 	private alived( message: NoWSToParentMessage<'alive'> )
@@ -200,16 +217,15 @@ export default class NoWS
 
 	public stop()
 	{
-		/*if ( main && this.server )
+		const p: Promise<void>[] = [];
+		Object.keys( this.servers ).forEach( ( url ) =>
 		{
-			this.server.stop();
-			this.server = null;
-		}*/
+			p.push( this.servers[ url ].stop().then( () =>
+			{
+				delete this.servers[ url ];
+			} ) );
+		} );
 
-/*		Object.keys( this.servers ).forEach( ( url ) =>
-		{
-			this.servers[ url ].stop();
-			delete this.servers[ url ];
-		} );*/
+		return Promise.all( p ).then( () => {} );
 	}
 }

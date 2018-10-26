@@ -59,14 +59,24 @@ console.log('child:',message);
 		} ).catch( ( error ) =>
 		{
 			//error.code 'EADDRINUSE': (Address already in use): An attempt to bind a server (net, http, or https) to a local address failed due to another server on the local system already occupying that address.
-			this.send( 'aborted', error );
+			this.abort( error );
 		} );
+	}
+
+	private abort( error: any )
+	{
+		this.send( 'aborted', error );
+		process.exit( 1 );
 	}
 
 	public stop()
 	{
 		if ( !this.server ) { return Promise.resolve(); }
-		return this.server.stop();
+		return this.server.stop().then( () =>
+		{
+			this.send( 'stop', {} );
+			process.exit( 0 );
+		} );
 	}
 
 	public alive()

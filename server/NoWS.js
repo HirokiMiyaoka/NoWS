@@ -5,7 +5,7 @@ const child = require("child_process");
 class WebServer {
     constructor(config) {
         this.config = config;
-        this.p = { alive: [] };
+        this.p = { alive: [], stop: [] };
         this.child = child.fork(path.join(path.dirname(process.argv[1]), 'Server.js'));
         this.child.on('message', (message) => {
             console.log('parent:', message);
@@ -15,6 +15,8 @@ class WebServer {
             switch (message.command) {
                 case 'prepare': return this.start(this.config);
                 case 'alive': return this.alived(message);
+                case 'aborted': return this.aborted(message);
+                case 'stop': return this.stopped();
                 default: this.onMessage(message);
             }
         });
@@ -28,9 +30,17 @@ class WebServer {
         this.send('start', data);
         return Promise.resolve();
     }
+    aborted(message) {
+    }
+    stopped() {
+        this.p.stop.forEach((resolve) => { resolve(); });
+        this.p.stop = [];
+    }
     stop() {
-        this.send('stop', {});
-        return Promise.resolve();
+        return new Promise((resolve, reject) => {
+            this.p.stop.push(resolve);
+            this.send('stop', {});
+        });
     }
     alived(message) {
         this.p.alive.forEach((resolve) => { resolve(!!message.data); });
@@ -110,6 +120,13 @@ class NoWS {
         });
     }
     stop() {
+        const p = [];
+        Object.keys(this.servers).forEach((url) => {
+            p.push(this.servers[url].stop().then(() => {
+                delete this.servers[url];
+            }));
+        });
+        return Promise.all(p).then(() => { });
     }
 }
 exports.default = NoWS;

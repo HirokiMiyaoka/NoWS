@@ -24,6 +24,7 @@ interface _ServerConfig extends ServerConfig
 	log: { err?: string | null, out?: string | null },
 
 	docs: string,
+	errs: string,
 	replace: { pattern: string, substr: string },
 	dir_index: string[],
 
@@ -171,6 +172,7 @@ console.log(file,config);
 						user: 0,
 						disable: config.disable === true,
 						docs: '',
+						errs: '',
 						mime: {},
 						replace: { pattern: '', substr: '' },
 						dir_index: [ 'index.html' ],
@@ -185,6 +187,12 @@ console.log(file,config);
 					{
 						const dir = path.normalize( config.docs );
 						newconf.docs = path.isAbsolute( dir ) ? dir : this.toAbsolutePath( dir );
+					}
+
+					if ( config.errs && typeof config.errs === 'string' )
+					{
+						const dir = path.normalize( config.errs );
+						newconf.errs = path.isAbsolute( dir ) ? dir : this.toAbsolutePath( dir );
 					}
 
 					// Option check.

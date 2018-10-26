@@ -111,6 +111,7 @@ class Config {
                         user: 0,
                         disable: config.disable === true,
                         docs: '',
+                        errs: '',
                         mime: {},
                         replace: { pattern: '', substr: '' },
                         dir_index: ['index.html'],
@@ -124,6 +125,10 @@ class Config {
                     if (config.docs && typeof config.docs === 'string') {
                         const dir = path.normalize(config.docs);
                         newconf.docs = path.isAbsolute(dir) ? dir : this.toAbsolutePath(dir);
+                    }
+                    if (config.errs && typeof config.errs === 'string') {
+                        const dir = path.normalize(config.errs);
+                        newconf.errs = path.isAbsolute(dir) ? dir : this.toAbsolutePath(dir);
                     }
                     if (typeof config.ssl === 'object' && typeof config.ssl.key === 'string' && typeof config.ssl.cert === 'string') {
                         newconf.ssl.key = config.ssl.key;

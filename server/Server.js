@@ -52,14 +52,21 @@ class Server {
                 process.setuid(config.user);
             });
         }).catch((error) => {
-            this.send('aborted', error);
+            this.abort(error);
         });
+    }
+    abort(error) {
+        this.send('aborted', error);
+        process.exit(1);
     }
     stop() {
         if (!this.server) {
             return Promise.resolve();
         }
-        return this.server.stop();
+        return this.server.stop().then(() => {
+            this.send('stop', {});
+            process.exit(0);
+        });
     }
     alive() {
         if (!this.server) {

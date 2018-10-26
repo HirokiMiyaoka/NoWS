@@ -97,15 +97,15 @@ function ErrorToCode(error) {
         return 404;
     }
     switch (error.code) {
-        case 'EACCES': return 403;
-        case 'ECONNREFUSED': return 408;
-        case 'ECONNRESET': return 408;
-        case 'EISDIR': break;
-        case 'EMFILE': return 403;
-        case 'ENOENT': return 404;
-        case 'ENOTDIR': return 404;
+        case 'EACCES':
+        case 'EMFILE':
         case 'EPERM': return 403;
-        case 'EPIPE': return 408;
+        case 'EISDIR':
+        case 'ENOENT':
+        case 'ENOTDIR': return 404;
+        case 'ECONNREFUSED':
+        case 'ECONNRESET':
+        case 'EPIPE':
         case 'ETIMEDOUT': return 408;
     }
     return 404;
@@ -118,6 +118,7 @@ class Server {
         this.host = config.host;
         this.port = config.port;
         this.docroot = path.normalize(config.docs || '');
+        this.errroot = config.errs || '';
         this.mime = Object.assign({}, exports.MIME);
         this.defFile = ['index.html'];
         const option = { key: '', cert: '' };
@@ -152,9 +153,16 @@ class Server {
     }
     errorCodeToPage(res, code) {
         const message = exports.HttpStatusCode[code] || exports.HttpStatusCode[(code = 404)];
-        res.writeHead(code, { 'Content-Type': 'text/plain' });
-        res.write(code + ': ' + message);
-        res.end();
+        const filepath = this.errroot ? path.join(this.errroot, code + '.html') : '';
+        return (filepath && this.fileExists(filepath) ? fs.readFile(filepath, 'utf-8').then((data) => {
+            res.writeHead(code, { 'Content-Type': 'text/html' });
+            res.write(data);
+            res.end();
+        }) : Promise.reject()).catch(() => {
+            res.writeHead(code, { 'Content-Type': 'text/plain' });
+            res.write(code + ': ' + message);
+            res.end();
+        });
     }
     errorPage(res, error) {
         const code = ErrorToCode(error);
@@ -190,9 +198,9 @@ class Server {
             return this.fileExists(fullpath) ? fullpath : '';
         }
         for (let def of this.defFile) {
-            const fullpath = path.join(this.docroot, filepath + def);
-            if (this.fileExists(filepath)) {
-                return filepath;
+            const fullpath = path.join(this.docroot, filepath, def);
+            if (this.fileExists(fullpath)) {
+                return fullpath;
             }
         }
         return '';
