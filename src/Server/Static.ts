@@ -1,12 +1,15 @@
 import * as fs from '../Pfs'
 import * as path from 'path'
+import * as net from 'net'
 import * as http from 'http'
 import * as https from 'https'
 import * as process from 'process'
 
 export const MIME: { [ key: string ]: string } =
 {
+	bmp:	'image/bmp',
 	css:	'text/css',
+	csv:	'text/csv',
 	gif:	'image/gif',
 	gz:	'application/gzip',
 	html:	'text/html',
@@ -15,6 +18,7 @@ export const MIME: { [ key: string ]: string } =
 	js:	'text/javascript',
 	json:	'application/json',
 	jsonp:	'application/javascript',
+	pdf:	'application/pdf',
 	png:	'image/png',
 	svg:	'image/svg+xml',
 	svgz:	'image/svg+xml',
@@ -135,6 +139,8 @@ export class Server implements NodeWebServer
 	protected errroot: string;
 	protected defFile: string[];
 	protected mime: { [ key: string ]: string };
+	protected allow: string[];
+	protected deny: string[];
 	protected server: http.Server | https.Server;
 
 	constructor()
@@ -172,6 +178,21 @@ export class Server implements NodeWebServer
 
 		this.server = this.ssl ? https.createServer( option ) : http.createServer();
 
+		if ( config.allow )
+		{
+			this.allow = Array.isArray( config.allow ) ? config.allow : [ config.allow ];
+		}
+		if ( config.deny )
+		{
+		}
+console.log(this.allow,this.deny);
+
+		if ( !path.isAbsolute( this.docroot ) )
+		{
+			this.docroot =path.resolve( __dirname, '../', this.docroot );
+		}
+		process.chdir( this.docroot );
+
 		return Promise.resolve();
 	}
 
@@ -187,7 +208,7 @@ export class Server implements NodeWebServer
 		return '';
 	}
 
-	protected errorCodeToPage( res: http.ServerResponse, code: number )
+	protected responseError( res: http.ServerResponse, code: number )
 	{
 		const message = (<any>HttpStatusCode)[ code ] || HttpStatusCode[ (code = 404) ];
 
@@ -206,11 +227,6 @@ export class Server implements NodeWebServer
 		} );
 	}
 
-	protected errorPage( res: http.ServerResponse, error: Error )
-	{
-		const code = ErrorToCode( error );
-		this.errorCodeToPage( res, code );
-	}
 
 	protected responseText( res: http.ServerResponse, filepath: string, mime: string )
 	{
@@ -219,7 +235,7 @@ export class Server implements NodeWebServer
 			res.writeHead( 200, { 'Content-Type': mime } );
 			res.write( data );
 			res.end();
-		} ).catch( ( error ) => { this.errorPage( res, error ); } );
+		} ).catch( ( error ) => { this.responseError( res, ErrorToCode( error ) ); } );
 	}
 
 	protected responseBinary( res: http.ServerResponse, filepath: string, mime: string )
@@ -229,7 +245,7 @@ export class Server implements NodeWebServer
 			res.writeHead( 200, { 'Content-Type': mime } );
 			res.write( data );
 			res.end();
-		} ).catch( ( error ) => { this.errorPage( res, error ); } );
+		} ).catch( ( error ) => { this.responseError( res, ErrorToCode( error ) ); } );
 	}
 
 	protected fileExists( filepath: string )
@@ -251,8 +267,7 @@ export class Server implements NodeWebServer
 			return this.fileExists( fullpath ) ? fullpath : '';
 		}
 
-		// Complement the URL.
-		// /test/ => /test/index.html
+		// Complement the URL. /test/ => /test/index.html
 		for ( let def of this.defFile )
 		{
 			const fullpath = path.join( this.docroot, filepath, def );
@@ -266,17 +281,17 @@ export class Server implements NodeWebServer
 	{
 		const filepath = this.checkFile( ( req.url || '/' ).split( '?' )[ 0 ] );
 
-		if ( !filepath ) { return this.errorCodeToPage( res, 404 ); }
+		if ( !filepath ) { return this.responseError( res, 404 ); }
 
 		var extname = path.extname( filepath ).replace( '.', '' );
 		var mime = this.mime[ extname ] || 'text/plain';
 
 		if ( mime.indexOf( 'text/' ) === 0 )
 		{
-			this.responseText( res, filepath, mime );
+			return this.responseText( res, filepath, mime );
 		} else
 		{
-			this.responseBinary( res, filepath, mime );
+			return this.responseBinary( res, filepath, mime );
 		}
 	}
 
@@ -284,14 +299,33 @@ export class Server implements NodeWebServer
 	{
 		return new Promise( ( resolve, reject ) =>
 		{
-//this.server.on( 'checkContinue', ( req: http.IncomingMessage, res: http.ServerResponse ) => { console.log( '', arguments ); } );
-//this.server.on( 'checkExpectation', ( req: http.IncomingMessage, res: http.ServerResponse ) => { console.log( '', arguments ); } );
-//this.server.on( 'clientError', ( exception: Error, socket: net.Socket ) => { console.log( '', arguments ); } );
+			//this.server.on( 'checkContinue', ( req: http.IncomingMessage, res: http.ServerResponse ) => { console.log( '', arguments ); } );
+			//this.server.on( 'checkExpectation', ( req: http.IncomingMessage, res: http.ServerResponse ) => { console.log( '', arguments ); } );
+			//this.server.on( 'clientError', ( exception: Error, socket: net.Socket ) => { console.log( '', arguments ); } );
+			//this.server.on( 'connect', ( request: http.IncomingMessage, socket: net.Socket, head: Buffer ) => { console.log( '', arguments ); } );
+			//this.server.on( 'connection', ( socket: net.Socket ) => { console.log( '', arguments ); } );
+			//this.server.on( 'upgrade', ( request: http.IncomingMessage, socket: net.Socket, head: Buffer ) => { console.log( '', arguments ); } );
+
 			this.server.on( 'close', () => {} );
-//this.server.on( 'connect', ( request: http.IncomingMessage, socket: net.Socket, head: Buffer ) => { console.log( '', arguments ); } );
-//this.server.on( 'connection', ( socket: net.Socket ) => { console.log( '', arguments ); } );
-			this.server.on( 'request', ( req, res ) => { this.onRequest( req, res ); } );
-//this.server.on( 'upgrade', ( request: http.IncomingMessage, socket: net.Socket, head: Buffer ) => { console.log( '', arguments ); } );
+
+			if ( 0 < this.allow.length )
+			{
+				this.server.on( 'request', ( request: http.IncomingMessage, response: http.ServerResponse ) =>
+				{
+					if ( this.allow.indexOf( request.socket.remoteAddress || '' ) < 0 ) { return this.responseError( response, 403 ); }
+					this.onRequest( request, response );
+				} );
+			} else if ( 0 < this.deny.length )
+			{
+				this.server.on( 'request', ( request: http.IncomingMessage, response: http.ServerResponse ) =>
+				{
+					if ( 0 <= this.deny.indexOf( request.socket.remoteAddress || '' ) ) { return this.responseError( response, 403 ); }
+					this.onRequest( request, response );
+				} );
+			} else
+			{
+				this.server.on( 'request', ( request, response ) => { this.onRequest( request, response ); } );
+			}
 
 console.log( this.host + ':' + this.port );
 			this.server.listen( this.port, this.host, () => { resolve(); } );

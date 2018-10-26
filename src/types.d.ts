@@ -12,16 +12,19 @@ interface ServerConfig
 	ssl?: { key: string, cert: string },//TODO: http redirect
 	// Change user( username or uid )
 	user?: string| number,
-	// Auth
-	// restrict access.allow,deny
+	// Auth. Digest,Basic
+	// if allow:[A] and deny[B] => use allow[ A ] (Default static server.)
+	allow?: string | string[],
+	deny?: string | string[],
 
-	// true = Cannot up web server.
+	// true = Do not start web server.
 	disable?: boolean,
 	mime?: { [ key: string ]: string },
 	log?: LogConfig,
 
 	// Static server.
 	docs?: string,
+	// Error pages. 404.html ...
 	errs?: string,
 	replace?: { pattern: string, substr: string },
 	// Default files.

@@ -1,13 +1,10 @@
 import Config from './Config'
 import * as fs from './Pfs'
-//import * as Static from './Static'
-//import Monitor from './Monitor'
 import * as path from 'path'
 import * as child from 'child_process'
 
 // TODO:
 // Proxy server
-// Operation server
 
 class WebServer
 {
@@ -23,7 +20,7 @@ class WebServer
 	{
 		this.config = config;
 		this.p = { alive: [], stop: [] };
-		this.child = child.fork( path.join( path.dirname( process.argv[ 1 ] ), 'Server.js' ) );
+		this.child = child.fork( path.join( __dirname, 'Server.js' ) );
 
 		this.child.on( 'message', ( message ) =>
 		{
@@ -97,7 +94,7 @@ function Timeout<T>( time: number, p: Promise<T> )
 	{
 		let timeout = false;
 		// I want to cancel Promise.
-		const timer = setTimeout( () => { timeout = true; reject( Error( 'timeout' ) ); }, time );
+		const timer = setTimeout( () => { timeout = true; reject( new Error( 'timeout' ) ); }, time );
 		p.then( ( data ) =>
 		{
 			if ( timeout ) { return; } // Rejected.
@@ -115,7 +112,6 @@ class MonitorServer extends WebServer
 	{
 		super( config );
 		this.nows = nows;
-
 	}
 
 	protected onMessage( message: any )
@@ -174,15 +170,12 @@ export default class NoWS
 */
 	public stopServer( url: string )
 	{
-//		if ( !this.servers[ url ] ) { return false; }
-//		this.servers[ url ].stop();
-//		delete this.servers[ url ];
 		return true;
 	}
 
 	private startServer( config: ServerConfig )
 	{
-		if ( config.module === path.join( path.dirname( process.argv[ 1 ] ), './Server/Monitor' ) )
+		if ( config.module === path.join( __dirname, './Server/Monitor' ) )
 		{
 			return new MonitorServer( config, this );
 		}
@@ -193,12 +186,6 @@ export default class NoWS
 	{
 		return this.config.load().then( () =>
 		{
-			/*if ( main )
-			{
-				if ( !this.server ) { this.server = new Monitor( this.config.get(), this ); }
-				this.server.start();
-			}*/
-
 			this.config.gets().forEach( ( config ) =>
 			{
 				const key = ( config.ssl && config.ssl.key && config.ssl.cert ? 'https://' : 'http://' ) + config.host + ':' + config.port;

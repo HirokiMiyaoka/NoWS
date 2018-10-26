@@ -4,8 +4,11 @@ const fs = require("../Pfs");
 const path = require("path");
 const http = require("http");
 const https = require("https");
+const process = require("process");
 exports.MIME = {
+    bmp: 'image/bmp',
     css: 'text/css',
+    csv: 'text/csv',
     gif: 'image/gif',
     gz: 'application/gzip',
     html: 'text/html',
@@ -14,6 +17,7 @@ exports.MIME = {
     js: 'text/javascript',
     json: 'application/json',
     jsonp: 'application/javascript',
+    pdf: 'application/pdf',
     png: 'image/png',
     svg: 'image/svg+xml',
     svgz: 'image/svg+xml',
@@ -135,6 +139,17 @@ class Server {
             this.defFile = config.dir_index;
         }
         this.server = this.ssl ? https.createServer(option) : http.createServer();
+        if (config.allow) {
+            this.allow = Array.isArray(config.allow) ? config.allow : [config.allow];
+        }
+        if (config.deny) {
+            this.deny = Array.isArray(config.deny) ? config.deny : [config.deny];
+        }
+        console.log(this.allow, this.deny);
+        if (!path.isAbsolute(this.docroot)) {
+            this.docroot = path.resolve(__dirname, '../', this.docroot);
+        }
+        process.chdir(this.docroot);
         return Promise.resolve();
     }
     loadPemFile(file) {
@@ -151,7 +166,7 @@ class Server {
         catch (error) { }
         return '';
     }
-    errorCodeToPage(res, code) {
+    responseError(res, code) {
         const message = exports.HttpStatusCode[code] || exports.HttpStatusCode[(code = 404)];
         const filepath = this.errroot ? path.join(this.errroot, code + '.html') : '';
         return (filepath && this.fileExists(filepath) ? fs.readFile(filepath, 'utf-8').then((data) => {
@@ -164,23 +179,19 @@ class Server {
             res.end();
         });
     }
-    errorPage(res, error) {
-        const code = ErrorToCode(error);
-        this.errorCodeToPage(res, code);
-    }
     responseText(res, filepath, mime) {
         return fs.readFile(filepath, 'utf-8').then((data) => {
             res.writeHead(200, { 'Content-Type': mime });
             res.write(data);
             res.end();
-        }).catch((error) => { this.errorPage(res, error); });
+        }).catch((error) => { this.responseError(res, ErrorToCode(error)); });
     }
     responseBinary(res, filepath, mime) {
         return fs.readFile(filepath).then((data) => {
             res.writeHead(200, { 'Content-Type': mime });
             res.write(data);
             res.end();
-        }).catch((error) => { this.errorPage(res, error); });
+        }).catch((error) => { this.responseError(res, ErrorToCode(error)); });
     }
     fileExists(filepath) {
         try {
@@ -208,21 +219,39 @@ class Server {
     onRequest(req, res) {
         const filepath = this.checkFile((req.url || '/').split('?')[0]);
         if (!filepath) {
-            return this.errorCodeToPage(res, 404);
+            return this.responseError(res, 404);
         }
         var extname = path.extname(filepath).replace('.', '');
         var mime = this.mime[extname] || 'text/plain';
         if (mime.indexOf('text/') === 0) {
-            this.responseText(res, filepath, mime);
+            return this.responseText(res, filepath, mime);
         }
         else {
-            this.responseBinary(res, filepath, mime);
+            return this.responseBinary(res, filepath, mime);
         }
     }
     start() {
         return new Promise((resolve, reject) => {
             this.server.on('close', () => { });
-            this.server.on('request', (req, res) => { this.onRequest(req, res); });
+            if (0 < this.allow.length) {
+                this.server.on('request', (request, response) => {
+                    if (this.allow.indexOf(request.socket.remoteAddress || '') < 0) {
+                        return this.responseError(response, 403);
+                    }
+                    this.onRequest(request, response);
+                });
+            }
+            else if (0 < this.deny.length) {
+                this.server.on('request', (request, response) => {
+                    if (0 <= this.deny.indexOf(request.socket.remoteAddress || '')) {
+                        return this.responseError(response, 403);
+                    }
+                    this.onRequest(request, response);
+                });
+            }
+            else {
+                this.server.on('request', (request, response) => { this.onRequest(request, response); });
+            }
             console.log(this.host + ':' + this.port);
             this.server.listen(this.port, this.host, () => { resolve(); });
         }).then(() => {

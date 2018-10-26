@@ -18,6 +18,8 @@ interface _ServerConfig extends ServerConfig
 {
 	ssl: { key: string, cert: string },
 	user: number,
+	allow: string[],
+	deny: string[],
 
 	disable: boolean,
 	mime: { [ key: string ]: string },
@@ -67,7 +69,7 @@ export default class Config
 
 	private toAbsolutePath( dir: string )
 	{
-		return path.normalize( path.join( path.dirname( process.argv[ 1 ] ), '../', dir ) );
+		return path.normalize( path.join( __dirname, '../', dir ) );
 	}
 
 	public gets(): ServerConfig[]
@@ -154,15 +156,14 @@ export default class Config
 			{
 				return fs.readJson5<ServerConfig>( path.join( dir, file ) ).then( ( config ) =>
 				{
-console.log(file,config);
 					const p: Promise<any>[] = [];
 
 					// JSON check
 					if ( typeof config !== 'object' || typeof config.port !== 'number' ||
-						typeof config.host !== 'string' || !config.host ) { throw Error( 'Invalid config.' ); }
+						typeof config.host !== 'string' || !config.host ) { throw new Error( 'Invalid config.' ); }
 					// Port check.
 					config.port = Math.floor( config.port );
-					if ( config.port < 0 || 65535 < config.port ) { throw Error( 'Invalid port.' ); }
+					if ( config.port < 0 || 65535 < config.port ) { throw new Error( 'Invalid port.' ); }
 
 					const newconf: _ServerConfig =
 					{
@@ -170,6 +171,8 @@ console.log(file,config);
 						port: config.port,
 						ssl: { key: '', cert: '' },
 						user: 0,
+						allow: [],
+						deny: [],
 						disable: config.disable === true,
 						docs: '',
 						errs: '',
@@ -211,6 +214,24 @@ console.log(file,config);
 							if ( isNaN( uid ) ) { return; }
 							config.user = uid;
 						} ).catch( () => {} ) );
+					}
+
+					if ( config.allow )
+					{
+						( Array.isArray( config.allow ) ? config.allow : [ config.allow ] ).forEach( ( ipaddress ) =>
+						{
+							if ( typeof ipaddress !== 'string' ) { return; }
+							newconf.allow.push( ipaddress );
+						} );
+					}
+
+					if ( config.deny )
+					{
+						( Array.isArray( config.deny ) ? config.deny : [ config.deny ] ).forEach( ( ipaddress ) =>
+						{
+							if ( typeof ipaddress !== 'string' ) { return; }
+							newconf.deny.push( ipaddress );
+						} );
 					}
 
 					if ( typeof config.mime === 'object' )

@@ -7,11 +7,11 @@ exports.default = CreateServer;
 class Server extends Static.Server {
     init(conf, server) {
         this.child = server;
+        this.p =
+            {
+                servers: [],
+            };
         return super.init(conf, server).then(() => {
-            this.p =
-                {
-                    servers: [],
-                };
             server.setOnMessage((message) => { this.onMessage(message); });
         });
     }
@@ -102,20 +102,14 @@ class Server extends Static.Server {
                 this.responseJSON(res, { message: 'No API' }, 404);
                 break;
         }
+        return Promise.resolve();
     }
-    start() {
-        return new Promise((resolve, reject) => {
-            this.server.on('request', (req, res) => {
-                const url = req.url || '/';
-                if (url.match(/^\/api\//)) {
-                    this.onAPIRequest(req, res);
-                }
-                else {
-                    this.onRequest(req, res);
-                }
-            });
-            this.server.listen(this.port, this.host, resolve);
-        });
+    onRequest(req, res) {
+        const url = req.url || '/';
+        if (url.match(/^\/api\//)) {
+            return this.onAPIRequest(req, res);
+        }
+        return super.onRequest(req, res);
     }
 }
 exports.Server = Server;

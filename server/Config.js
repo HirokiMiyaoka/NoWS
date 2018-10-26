@@ -26,7 +26,7 @@ class Config {
         this.dir = dir;
     }
     toAbsolutePath(dir) {
-        return path.normalize(path.join(path.dirname(process.argv[1]), '../', dir));
+        return path.normalize(path.join(__dirname, '../', dir));
     }
     gets() {
         return Object.keys(this.confs).map((key) => { return this.confs[key]; });
@@ -94,21 +94,22 @@ class Config {
         }).then((files) => {
             return Promise.all(files.map((file) => {
                 return fs.readJson5(path.join(dir, file)).then((config) => {
-                    console.log(file, config);
                     const p = [];
                     if (typeof config !== 'object' || typeof config.port !== 'number' ||
                         typeof config.host !== 'string' || !config.host) {
-                        throw Error('Invalid config.');
+                        throw new Error('Invalid config.');
                     }
                     config.port = Math.floor(config.port);
                     if (config.port < 0 || 65535 < config.port) {
-                        throw Error('Invalid port.');
+                        throw new Error('Invalid port.');
                     }
                     const newconf = {
                         host: config.host,
                         port: config.port,
                         ssl: { key: '', cert: '' },
                         user: 0,
+                        allow: [],
+                        deny: [],
                         disable: config.disable === true,
                         docs: '',
                         errs: '',
@@ -142,6 +143,22 @@ class Config {
                             }
                             config.user = uid;
                         }).catch(() => { }));
+                    }
+                    if (config.allow) {
+                        (Array.isArray(config.allow) ? config.allow : [config.allow]).forEach((ipaddress) => {
+                            if (typeof ipaddress !== 'string') {
+                                return;
+                            }
+                            newconf.allow.push(ipaddress);
+                        });
+                    }
+                    if (config.deny) {
+                        (Array.isArray(config.deny) ? config.deny : [config.deny]).forEach((ipaddress) => {
+                            if (typeof ipaddress !== 'string') {
+                                return;
+                            }
+                            newconf.deny.push(ipaddress);
+                        });
                     }
                     if (typeof config.mime === 'object') {
                         const mime = config.mime;

@@ -6,7 +6,7 @@ class WebServer {
     constructor(config) {
         this.config = config;
         this.p = { alive: [], stop: [] };
-        this.child = child.fork(path.join(path.dirname(process.argv[1]), 'Server.js'));
+        this.child = child.fork(path.join(__dirname, 'Server.js'));
         this.child.on('message', (message) => {
             console.log('parent:', message);
             if (typeof message !== 'object') {
@@ -56,7 +56,7 @@ class WebServer {
 function Timeout(time, p) {
     return new Promise((resolve, reject) => {
         let timeout = false;
-        const timer = setTimeout(() => { timeout = true; reject(Error('timeout')); }, time);
+        const timer = setTimeout(() => { timeout = true; reject(new Error('timeout')); }, time);
         p.then((data) => {
             if (timeout) {
                 return;
@@ -103,7 +103,7 @@ class NoWS {
         return true;
     }
     startServer(config) {
-        if (config.module === path.join(path.dirname(process.argv[1]), './Server/Monitor')) {
+        if (config.module === path.join(__dirname, './Server/Monitor')) {
             return new MonitorServer(config, this);
         }
         return new WebServer(config);

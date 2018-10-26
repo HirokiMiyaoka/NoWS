@@ -30,14 +30,14 @@ class Server {
             }
             const WebServer = require(config.module || './Server/Static');
             if (!WebServer) {
-                throw Error('Cannot require:' + (config.module || './Server/Static'));
+                throw new Error('Cannot require:' + (config.module || './Server/Static'));
             }
             if (typeof WebServer.default !== 'function') {
-                throw Error('Notfound default function.');
+                throw new Error('Notfound default function.');
             }
             const server = WebServer.default(config);
             if (!server || typeof server.init !== 'function' || typeof server.start !== 'function' || typeof server.stop !== 'function' || typeof server.alive !== 'function') {
-                throw Error('Cannot create server.');
+                throw new Error('Cannot create server.');
             }
             return server.init(config, this).then(() => {
                 return server.start();

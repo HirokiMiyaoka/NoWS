@@ -16,12 +16,12 @@ export class Server extends Static.Server
 	public init( conf: ServerConfig, server: ChildServer )
 	{
 		this.child = server;
+		this.p =
+		{
+			servers: [],
+		};
 		return super.init( conf, server ).then( () =>
 		{
-			this.p =
-			{
-				servers: [],
-			};
 			server.setOnMessage( ( message ) => { this.onMessage( message ); } );
 		} );
 	}
@@ -143,25 +143,18 @@ export class Server extends Static.Server
 			case 'server/stop': this.apiServerStop( req, res ); break;
 			default: this.responseJSON( res, { message: 'No API' }, 404 ); break;
 		}
+
+		return Promise.resolve();
 	}
 
-	public start()
+	public onRequest( req: http.IncomingMessage, res: http.ServerResponse )
 	{
-		return new Promise<void>( ( resolve, reject ) =>
+		const url = req.url || '/';
+		if ( url.match( /^\/api\// ) )
 		{
-			this.server.on( 'request', ( req: http.IncomingMessage, res: http.ServerResponse ) =>
-			{
-				const url = req.url || '/';
-				if ( url.match( /^\/api\// ) )
-				{
-					this.onAPIRequest( req, res );
-				} else
-				{
-					this.onRequest( req, res );
-				}
-			} );
+			return this.onAPIRequest( req, res );
+		}
 
-			this.server.listen( this.port, this.host, resolve );
-		} );
+		return super.onRequest( req, res );
 	}
 }

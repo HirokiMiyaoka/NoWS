@@ -38,12 +38,12 @@ console.log('child:',message);
 
 			const WebServer = require( config.module || './Server/Static' );
 
-			if ( !WebServer ) { throw Error( 'Cannot require:' + ( config.module || './Server/Static' ) ); }
-			if ( typeof WebServer.default !== 'function' ) { throw Error( 'Notfound default function.' ); }
+			if ( !WebServer ) { throw new Error( 'Cannot require:' + ( config.module || './Server/Static' ) ); }
+			if ( typeof WebServer.default !== 'function' ) { throw new Error( 'Notfound default function.' ); }
 
 			const server: NodeWebServer = WebServer.default( config );
 
-			if ( !server || typeof server.init !== 'function' || typeof server.start !== 'function'|| typeof server.stop !== 'function'|| typeof server.alive !== 'function' ) { throw Error( 'Cannot create server.' ); }
+			if ( !server || typeof server.init !== 'function' || typeof server.start !== 'function'|| typeof server.stop !== 'function'|| typeof server.alive !== 'function' ) { throw new Error( 'Cannot create server.' ); }
 
 			return server.init( config, this ).then( () =>
 			{
@@ -81,7 +81,7 @@ console.log('child:',message);
 
 	public alive()
 	{
-		if ( ! this.server ) { this.send( 'alive', false ); return Promise.resolve(); }
+		if ( !this.server ) { this.send( 'alive', false ); return Promise.resolve(); }
 		return this.server.alive().then( ( alive ) => { this.send( 'alive', alive ); } );
 	}
 }
