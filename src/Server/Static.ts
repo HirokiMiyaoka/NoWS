@@ -184,6 +184,7 @@ export class Server implements NodeWebServer
 		}
 		if ( config.deny )
 		{
+			this.deny = Array.isArray( config.deny ) ? config.deny : [ config.deny ];
 		}
 console.log(this.allow,this.deny);
 
