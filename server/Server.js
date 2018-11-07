@@ -1,8 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 class Server {
     constructor() {
         this.onMessage = () => { };
         process.on('message', (message) => {
-            console.log('child:', message);
+            console.debug('Child:', message);
             if (typeof message !== 'object') {
                 return;
             }

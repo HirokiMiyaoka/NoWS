@@ -186,7 +186,6 @@ export class Server implements NodeWebServer
 		{
 			this.deny = Array.isArray( config.deny ) ? config.deny : [ config.deny ];
 		}
-console.log(this.allow,this.deny);
 
 		if ( !path.isAbsolute( this.docroot ) )
 		{
@@ -227,7 +226,6 @@ console.log(this.allow,this.deny);
 			res.end();
 		} );
 	}
-
 
 	protected responseText( res: http.ServerResponse, filepath: string, mime: string )
 	{
@@ -328,7 +326,7 @@ console.log(this.allow,this.deny);
 				this.server.on( 'request', ( request, response ) => { this.onRequest( request, response ); } );
 			}
 
-console.log( this.host + ':' + this.port );
+			console.info( ( this.ssl ? 'https://' : 'http://' ) + this.host + ':' + this.port );
 			this.server.listen( this.port, this.host, () => { resolve(); } );
 		} ).then( () =>
 		{

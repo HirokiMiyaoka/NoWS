@@ -1,7 +1,14 @@
 interface LogConfig
 {
-	err?: string | null,
-	out?: string | null,
+	default?: string | null,
+	assert?: string | null,
+	debug?: string | null,
+	error?: string | null,
+	info?: string | null,
+	log?: string | null,
+	warn?: string | null,
+	// Log option.
+	size?: number,
 }
 
 interface ServerConfig

@@ -64,3 +64,5 @@ conf/
 !conf/config.json5
 *.sublime-workspace
 package-lock.json
+
+tmp/

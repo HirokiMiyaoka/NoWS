@@ -1,3 +1,4 @@
+import Log from './Log'
 
 class Server implements ChildServer
 {
@@ -9,7 +10,7 @@ class Server implements ChildServer
 		this.onMessage = () => {};
 		process.on( 'message', ( message ) =>
 		{
-console.log('child:',message);
+			console.debug( 'Child:', message );
 			if ( typeof message !== 'object' ) { return; }
 			switch ( message.command )
 			{
@@ -32,6 +33,7 @@ console.log('child:',message);
 
 	public start( config: ServerConfig )
 	{
+		if ( config.log ) { Log( config.log ); }
 		return this.stop().then( () =>
 		{
 			if ( this.server ) { this.server.stop(); this.server = null; }

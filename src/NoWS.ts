@@ -1,4 +1,5 @@
 import Config from './Config'
+import Log from './Log'
 import * as fs from './Pfs'
 import * as path from 'path'
 import * as child from 'child_process'
@@ -24,7 +25,7 @@ class WebServer
 
 		this.child.on( 'message', ( message ) =>
 		{
-console.log('parent:',message);
+			console.debug( 'Parent:',message );
 			if ( typeof message !== 'object' ) { return; }
 			switch ( <keyof NoWSToParentMessageMap>message.command )
 			{

@@ -145,7 +145,6 @@ class Server {
         if (config.deny) {
             this.deny = Array.isArray(config.deny) ? config.deny : [config.deny];
         }
-        console.log(this.allow, this.deny);
         if (!path.isAbsolute(this.docroot)) {
             this.docroot = path.resolve(__dirname, '../', this.docroot);
         }
@@ -252,7 +251,7 @@ class Server {
             else {
                 this.server.on('request', (request, response) => { this.onRequest(request, response); });
             }
-            console.log(this.host + ':' + this.port);
+            console.info((this.ssl ? 'https://' : 'http://') + this.host + ':' + this.port);
             this.server.listen(this.port, this.host, () => { resolve(); });
         }).then(() => {
         });

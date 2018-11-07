@@ -23,7 +23,7 @@ interface _ServerConfig extends ServerConfig
 
 	disable: boolean,
 	mime: { [ key: string ]: string },
-	log: { err?: string | null, out?: string | null },
+	log: LogConfig,
 
 	docs: string,
 	errs: string,
@@ -261,20 +261,16 @@ export default class Config
 						// undefined ... default(stdout,stderr)
 						// null      ... No output.
 						// string    ... Output file.
-						if ( config.log.err === null )
-						{
-							newconf.log.err = config.log.err;
-						} else if ( typeof config.log.err === 'string' )
-						{
-							newconf.log.err = path.isAbsolute( config.log.err ) ? config.log.err : this.toAbsolutePath( config.log.err );
-						}
-						if ( config.log.out === null )
-						{
-							newconf.log.out = config.log.out;
-						} else if ( typeof config.log.out === 'string' )
-						{
-							newconf.log.out = path.isAbsolute( config.log.out ) ? config.log.err : this.toAbsolutePath( config.log.out );
-						}
+						//               stdout
+						//               stderr
+						if ( config.log.default === null || typeof config.log.default === 'string' ) { newconf.log.default = config.log.default; }
+						if ( config.log.assert === null || typeof config.log.assert === 'string' ) { newconf.log.assert = config.log.assert; }
+						if ( config.log.debug === null || typeof config.log.debug === 'string' ) { newconf.log.debug = config.log.debug; }
+						if ( config.log.error === null || typeof config.log.error === 'string' ) { newconf.log.error = config.log.error; }
+						if ( config.log.info === null || typeof config.log.info === 'string' ) { newconf.log.info = config.log.info; }
+						if ( config.log.log === null || typeof config.log.log === 'string' ) { newconf.log.log = config.log.log; }
+						if ( config.log.warn === null || typeof config.log.warn === 'string' ) { newconf.log.warn = config.log.warn; }
+						if ( typeof config.log.size === 'number' && 0 < config.log.size ) { newconf.log.size = config.log.size; }
 					}
 
 					if ( typeof config.module === 'string' )

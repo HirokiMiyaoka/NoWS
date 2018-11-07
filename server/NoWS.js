@@ -8,7 +8,7 @@ class WebServer {
         this.p = { alive: [], stop: [] };
         this.child = child.fork(path.join(__dirname, 'Server.js'));
         this.child.on('message', (message) => {
-            console.log('parent:', message);
+            console.debug('Parent:', message);
             if (typeof message !== 'object') {
                 return;
             }
