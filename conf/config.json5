@@ -4,4 +4,5 @@
 	docs: './docs',
 	module: 'Monitor',
 	log: {},
+	headers: { 'Cache-Control': 'no-cache' },
 }

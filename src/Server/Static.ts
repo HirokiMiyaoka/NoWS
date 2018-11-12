@@ -141,6 +141,7 @@ export class Server implements NodeWebServer
 	protected mime: { [ key: string ]: string };
 	protected allow: string[];
 	protected deny: string[];
+	protected headers: { [ key: string ]: string };
 	protected server: http.Server | https.Server;
 
 	constructor()
@@ -156,6 +157,7 @@ export class Server implements NodeWebServer
 		this.errroot = config.errs || '';
 		this.mime = Object.assign( {}, MIME );
 		this.defFile = [ 'index.html' ];
+		this.headers = config.headers || {};
 
 		const option = { key: '', cert: '' };
 		if ( config.ssl && option.key && option.cert )
@@ -231,7 +233,7 @@ export class Server implements NodeWebServer
 	{
 		return fs.readFile( filepath, 'utf-8' ).then( ( data ) =>
 		{
-			res.writeHead( 200, { 'Content-Type': mime } );
+			res.writeHead( 200, Object.assign( {}, this.headers, { 'Content-Type': mime } ) );
 			res.write( data );
 			res.end();
 		} ).catch( ( error ) => { this.responseError( res, ErrorToCode( error ) ); } );
@@ -241,7 +243,7 @@ export class Server implements NodeWebServer
 	{
 		return fs.readFile( filepath ).then( ( data ) =>
 		{
-			res.writeHead( 200, { 'Content-Type': mime } );
+			res.writeHead( 200, Object.assign( {}, this.headers, { 'Content-Type': mime } ) );
 			res.write( data );
 			res.end();
 		} ).catch( ( error ) => { this.responseError( res, ErrorToCode( error ) ); } );

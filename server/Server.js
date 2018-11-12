@@ -1,5 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const Log_1 = require("./Log");
+Object.freeze(Object.prototype);
 class Server {
     constructor() {
         this.onMessage = () => { };
@@ -25,6 +27,9 @@ class Server {
     }
     send(command, data) { process.send({ command: command, data: data }); }
     start(config) {
+        if (config.log) {
+            Log_1.default(config.log);
+        }
         return this.stop().then(() => {
             if (this.server) {
                 this.server.stop();

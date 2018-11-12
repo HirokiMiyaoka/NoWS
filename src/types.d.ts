@@ -16,7 +16,7 @@ interface ServerConfig
 	// Web server settings.
 	host: string,
 	port: number,
-	ssl?: { key: string, cert: string },//TODO: http redirect
+	ssl?: { key: string, cert: string },//TODO: http redirect or redirect JSON.
 	// Change user( username or uid )
 	user?: string| number,
 	// Auth. Digest,Basic
@@ -31,13 +31,14 @@ interface ServerConfig
 
 	// Static server.
 	docs?: string,
-	// Error pages. 404.html ...
+	// Error pages. Prepare 403.html, 404.html, etc...
 	errs?: string,
 	replace?: { pattern: string, substr: string },
 	// Default files.
 	dir_index?: string | string[],
-	// Exec cgi.
-	// Chache control.
+	// Exec cgi. string[]   [ '.cgi' ]
+	// HTTP headers.
+	headers?: { [ key: string ]: string },
 
 	// Original server.
 	module?: string,

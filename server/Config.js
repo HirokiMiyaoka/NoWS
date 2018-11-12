@@ -116,6 +116,7 @@ class Config {
                         mime: {},
                         replace: { pattern: '', substr: '' },
                         dir_index: ['index.html'],
+                        headers: {},
                         log: {},
                         module: './Server/Static',
                         option: config.option,
@@ -180,6 +181,15 @@ class Config {
                         if (Array.isArray(config.dir_index)) {
                             newconf.dir_index = config.dir_index.concat();
                         }
+                    }
+                    if (typeof config.headers === 'object') {
+                        const headers = config.headers;
+                        Object.keys(headers).forEach((key) => {
+                            if (typeof headers[key] !== 'string') {
+                                return;
+                            }
+                            newconf.headers[key] = headers[key];
+                        });
                     }
                     if (config.log) {
                         if (config.log.default === null || typeof config.log.default === 'string') {

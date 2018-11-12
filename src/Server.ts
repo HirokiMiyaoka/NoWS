@@ -1,5 +1,8 @@
 import Log from './Log'
 
+// Defend Object from prototype pollution.
+Object.freeze( Object.prototype );
+
 class Server implements ChildServer
 {
 	private server: NodeWebServer | null;
