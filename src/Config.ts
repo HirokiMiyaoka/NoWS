@@ -197,7 +197,7 @@ export default class Config
 					if ( config.errs && typeof config.errs === 'string' )
 					{
 						const dir = path.normalize( config.errs );
-						newconf.errs = path.isAbsolute( dir ) ? dir : this.toAbsolutePath( dir );
+						newconf.errs = path.isAbsolute( dir ) ? dir : path.join( newconf.docs, dir );
 					}
 
 					// Option check.

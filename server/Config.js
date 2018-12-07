@@ -130,7 +130,7 @@ class Config {
                     }
                     if (config.errs && typeof config.errs === 'string') {
                         const dir = path.normalize(config.errs);
-                        newconf.errs = path.isAbsolute(dir) ? dir : this.toAbsolutePath(dir);
+                        newconf.errs = path.isAbsolute(dir) ? dir : path.join(newconf.docs, dir);
                     }
                     if (typeof config.ssl === 'object' && typeof config.ssl.key === 'string' && typeof config.ssl.cert === 'string') {
                         newconf.ssl.key = config.ssl.key;
